@@ -6,10 +6,7 @@ import json5
 #from sympy import Symbol
 start_time = time.time()
 
-"""
-todo
-Перевернуть Sabs для вычисления мощности при входном напряжении.
-"""
+
 def ParLoader(prname=False, gcname=False):
     """
     Function for automatic parameters filling.
@@ -95,15 +92,12 @@ def ParLoader(prname=False, gcname=False):
                        "xc2": 1,
                        "w2": 1,
                        "A2": 1,
-                       "xi_MoO3": 25,
-                       "xi_3": 25,
+                       "xi_MoO3": 40,
+                       "xi_3": 40,
                        "y03": 0.2262,
                        "xc3": 40,
                        "w3": 318.32173,
-                       "A3": -113.01079,
-                       "gam_Mo_hi": lambda x: 0.8236-0.80571*np.exp(-x/(1.6e-19*1039.32852)),
-                       "gam_B_hi": lambda x: 1.85289-1.9649*np.exp(-x/(1.6e-19*952.03776)),
-                       "gam_MoO3_hi": lambda x: 0.15682-0.16238*np.exp(-x/(1.6e-19*1310.76845))
+                       "A3": -113.01079
                        },
                    "He": {
                        "xi_ex": 19.77,
@@ -137,16 +131,7 @@ def ParLoader(prname=False, gcname=False):
                        "y01": 0.17246,
                        "xc1": 20,
                        "w1": 177.45386,
-                       "A1": -47.93846,
-                       "gam_Mo_hi": lambda x: 0.05636-0.06908*np.exp(-x/(1.6e-19*451.8792)),
-                       "gam_B_hi": lambda x: (0.63346-2*11205.55135*13921.51887
-                                              /(np.pi*(4*np.power(x/1.6e-19-4440, 2)
-                                                       +np.power(13921.51887, 2)))
-                                              -2*160.27248*348.90715
-                                              /(np.pi*(4*np.power(x/1.6e-19+28, 2)
-                                                       +np.power(348.90715, 2)))),
-                       "gam_MoO3_hi": lambda x: 0.03212-0.03677*np.exp(-x/(1.6e-19*767.13872)),
-                       "xi_MoO3": 80
+                       "A1": -47.93846
                        },
                    "Ar": {
                        "xi_ex": 13.17,
@@ -187,15 +172,12 @@ def ParLoader(prname=False, gcname=False):
                        "xc2": 31,
                        "w2": 333.74389,
                        "A2": -183.47724,
-                       "xi_MoO3": 25,
+                       "xi_MoO3": 40,
                        "xi_3": 40,
                        "y03": 0.2262,
                        "xc3": 40,
                        "w3": 318.32173,
-                       "A3": -113.01079,
-                       "gam_Mo_hi": lambda x: 2.74606-2.97354*np.exp(-x/(1.6e-19*1687.79318)),
-                       "gam_B_hi": lambda x: 1.64807-1.62468*np.exp(-x/(1.6e-19*1368.54118)),
-                       "gam_MoO3_hi": lambda x: 0.15682-0.16238*np.exp(-x/(1.6e-19*1310.76845))
+                       "A3": -113.01079
                        }
                    }
         else: 
@@ -222,12 +204,12 @@ def ParLoader(prname=False, gcname=False):
         """
         if (prname==False):
             par = {
-                'ro_B': 2.34e3,
+                'ro_B': 2.34*(10**3),
                 'M_B': 10.81,
-                'ro_Mo': 10.2e3,
+                'ro_Mo': 10.2*(10**3),
                 'M_Mo': 95.95,
-                'ro_MoO3': 4.9e3,
-                'M_MoO3': 95.95+3*16,
+                'ro_MoO3': 4.9*(10**3),
+                'M_MoO3': 95.95+3.16,
                 
                 'e': 1.6e-19,
                 'gas': "Ne",
@@ -653,8 +635,8 @@ def VrfCalc(verbose=False):
             +0.5*out['Te'])))
         out['n0'] = out['ns']/par['hl']
         out['V'] = 0.83*out['V1']
-        out['Ji_symm'] = par['e']*out['ns']*out['ub']
-        par['sm'] = np.sqrt(0.82*par['e0']*np.power(out['V'], 3/2)/out['Ji_symm']
+        out['Ji'] = par['e']*out['ns']*out['ub']
+        par['sm'] = np.sqrt(0.82*par['e0']*np.power(out['V'], 3/2)/out['Ji']
                             *np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
         out['J1'] = 1.23*par['omega']*par['e0']/par['sm']*out['V1']
         out['Sabs'] = (2*par['e']*out['ns']*out['ub']
@@ -673,7 +655,7 @@ def VrfCalc(verbose=False):
             check['ns'].append(out['ns'])
             check['n0'].append(out['n0'])
             check['V'].append(out['V'])
-            check['Ji'].append(out['Ji_symm'])
+            check['Ji'].append(out['Ji'])
             check['sm'].append(par['sm'])
             check['J1'].append(out['J1'])
             check['Sabs'].append(out['Sabs'])
@@ -714,7 +696,7 @@ def VrfCalc(verbose=False):
                 print(f'Vrf = {Vrf}')
                 print(f'Sabs = {out["Sabs"]}')
                 print(f'ns = {out["ns"]}')
-                print(f'Ji = {out["Ji_symm"]}')
+                print(f'Ji = {out["Ji"]}')
                 
         
                 
@@ -817,9 +799,9 @@ def VrfCalc(verbose=False):
         #plt.xlim(0,5)
         #plt.ylim(0,0.2)
         plt.legend()
-        plt.show()  
-        
-    Vrf = Vrf_(verbose=verbose) 
+        plt.show()   
+    Vrf = Vrf_(verbose=verbose)
+    print(VrfSample(1864,5)[9]) 
     if (verbose==True): 
         VrfEval()
         VrfDynEval()
@@ -868,18 +850,18 @@ def dECalc():
     Automatically collects all obtained parameters in out[] dict.
 
     """
-
-    out['dEi1'] = (4*np.power(par['e']*out['V1_avg'], 1.5) #194.37009
-                   /(par['omega']*out['sm1']*np.sqrt(2*gas_params[par['gas']]['M'])))
-    out['dEi1 [eV]'] = out['dEi1']/par['e']
-    out['dEi2'] = (4*np.power(par['e']*out['V2_avg'], 1.5) #18.75306
+    """
+    ???
+    Смена разрядности sm?
+    """
+    out['dEi1'] = (4*np.sign(par['e'])*np.power(np.abs(par['e'])*out['V1_avg'], 1.5)  #np.sign для извлечения 
+                   /(par['omega']*out['sm1']*np.sqrt(2*gas_params[par['gas']]['M'])))   #знака параметра из нечётной степени
+    out['dEi2'] = (4*np.sign(par['e'])*np.power(np.abs(par['e']*out['V2_avg']), (3/2))
                    /(par['omega']*out['sm2']*np.sqrt(2*gas_params[par['gas']]['M'])))
-    out['dEi2 [eV]'] = out['dEi2']/par['e']
-    out['dEi_symm'] = (4*np.power(par['e']*out['Vp_symm'], 1.5) #167.38546
+    out['dEi_symm'] = (4*np.sign(par['e'])*np.power(np.abs(par['e']*out['Vp_symm']), (3/2))
                        /(par['omega']*out['sm2']*np.sqrt(2*gas_params[par['gas']]['M'])))
-    out['dEi_symm [eV]'] = out['dEi_symm']/par['e']
     out['Ns1'] = out['Ji1']/par['e']
-    out['Ns_symm'] = out['Ji_symm']/par['e']
+    out['Ns_symm'] = out['Ji']/par['e']
     out['Ns2'] = out['Ji2']/par['e']
     return None
 
@@ -905,35 +887,24 @@ def FiENorm():
     """
     j_ = ['1','2','_symm','1_avg','2_avg','p_symm']
     el =  ['Mo', 'B', 'Si', 'MoO3']
-    xi_hilo = 250
     for j in [0,1,2]:
         FiE = lambda x: (2*out[f'Ns{j_[j]}']/(par['omega']*out[f'dEi{j_[j]}'])
-                            *np.power(1-4*np.power(x-par['e']*out[f'V{j_[j+3]}'], 2)
-                                             /np.power(out[f'dEi{j_[j]}'], 2), -0.5))
-
+                            *np.power(np.abs(1-4*np.power(x-par['e']*out[f'V{j_[j+3]}'], 2)
+                                             /np.power(out[f'dEi{j_[j]}'], 2)), -0.5)
+                            *np.sign((1-4*np.power(x-par['e']*out[f'V{j_[j+3]}'], 2)
+                                      /np.power(out[f'dEi{j_[j]}'], 2))))
         out[f'NN{j_[j]}'] = integrate.quad(FiE, par['e']*out[f'V{j_[j+3]}']-(out[f'dEi{j_[j]}']/2),
                                            par['e']*out[f'V{j_[j+3]}']+(out[f'dEi{j_[j]}']/2))[0]
-                                                                                              
-        for i in [0,1,3]:
+                                                                                               
+        for i in [0,1,2,3]:
             gam = lambda x: (gas_params[par['gas']][f'y0{i}']+2*gas_params[par['gas']][f'A{i}']/np.pi
                                 *(gas_params[par['gas']][f'w{i}']/
                                   (4*np.power(x/par['e']-gas_params[par['gas']][f'xc{i}'], 2)
                                    +np.power(gas_params[par['gas']][f'w{i}'], 2))))
-            if (out[f'V{j_[j+3]}'] < xi_hilo): 
-                gam1_eff = lambda x: (gam(x)*FiE(x)/out[f'NN{j_[j]}']*np.heaviside(x-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))
-            else: 
-                gam1_eff = lambda x: (gas_params[par['gas']][f'gam_{el[i]}_hi'](x)*FiE(x)/out[f'NN{j_[j]}']*np.heaviside(x-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))
-            out[f'Г{j_[j]}_{el[i]}_eff'] = (integrate.quad(gam1_eff, par['e']*out[f'V{j_[j+3]}']-(out[f'dEi{j_[j]}']/2),
+            gam1_eff = lambda x: (gam(x)*FiE(x)*np.heaviside(x-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))
+            out[f'gam{j_[j]}_{el[i]}_eff'] = (out[f'Ns{j_[j]}']/out[f'NN{j_[j]}']
+                                      *integrate.quad(gam1_eff, par['e']*out[f'V{j_[j+3]}']-(out[f'dEi{j_[j]}']/2),
                                                       par['e']*out[f'V{j_[j+3]}']+(out[f'dEi{j_[j]}']/2))[0])
-            #out[f'gam{j_[j]}_{el[i]}_eff_EV'] = out[f'Г{j_[j]}_{el[i]}_eff']*2
-    for j in [0,1,2]:        
-        out[f'd{j_[j]}_MoB'] = out[f'Г{j_[j]}_Mo_eff']/(out[f'Г{j_[j]}_B_eff']+out[f'Г{j_[j]}_Mo_eff']+1e-10)
-        out[f'd{j_[j]}_MoO3'] = out[f'Г{j_[j]}_Mo_eff']/(out[f'Г{j_[j]}_MoO3_eff']+out[f'Г{j_[j]}_Mo_eff']+1e-10)
-        
-        for i in [0,1,3]:
-            out[f'd{j_[j]}M_{el[i]}'] = out[f'Ji{j_[j]}']/(par['e']*par['N_A']*1e3)*par[f'M_{el[i]}']*out[f'Г{j_[j]}_{el[i]}_eff']
-            out[f'd{j_[j]}H_{el[i]}'] = out[f'd{j_[j]}M_{el[i]}']/par[f'ro_{el[i]}']
-    
     
     
             
