@@ -3,14 +3,11 @@ import matplotlib.pyplot as plt
 from scipy import optimize, integrate
 import numpy as np
 import json5
-#from sympy import Symbol
+import sys
 start_time = time.time()
 
-"""
-todo
-Перевернуть Sabs для вычисления мощности при входном напряжении.
-"""
-def ParLoader(prname=False, gcname=False):
+
+def ParLoader(prname=False, vrname=False, gcname=False):
     """
     Function for automatic parameters filling.
 
@@ -96,7 +93,7 @@ def ParLoader(prname=False, gcname=False):
                        "w2": 1,
                        "A2": 1,
                        "xi_MoO3": 25,
-                       "xi_3": 25,
+                       "xi_3": 40,
                        "y03": 0.2262,
                        "xc3": 40,
                        "w3": 318.32173,
@@ -146,7 +143,8 @@ def ParLoader(prname=False, gcname=False):
                                               /(np.pi*(4*np.power(x/1.6e-19+28, 2)
                                                        +np.power(348.90715, 2)))),
                        "gam_MoO3_hi": lambda x: 0.03212-0.03677*np.exp(-x/(1.6e-19*767.13872)),
-                       "xi_MoO3": 80
+                       "xi_MoO3": 80,
+                       "xi_3": 80
                        },
                    "Ar": {
                        "xi_ex": 13.17,
@@ -188,7 +186,7 @@ def ParLoader(prname=False, gcname=False):
                        "w2": 333.74389,
                        "A2": -183.47724,
                        "xi_MoO3": 25,
-                       "xi_3": 40,
+                       "xi_3": 25,
                        "y03": 0.2262,
                        "xc3": 40,
                        "w3": 318.32173,
@@ -203,7 +201,7 @@ def ParLoader(prname=False, gcname=False):
                 gas_params = json5.load(file)
         return gas_params
     
-    def LoadInitPar(prname=False):
+    def LoadInitPar(prname=False, vrname=False):
         """
         Function for fetching values of initial physical parameters.
 
@@ -230,17 +228,10 @@ def ParLoader(prname=False, gcname=False):
                 'M_MoO3': 95.95+3*16,
                 
                 'e': 1.6e-19,
-                'gas': "Ne",
-                'p': 3, #Геометрия ?
-                'l': 0.10, #electrode dist
-                'R': 6.65e-2, #electrode diam
-                
-                'f': 10*1e6,
-                'Vrf': 22,
-                'Pwr': 29.94171, #rf field params
+
                 
                  #потенциал плазмы и слоя в симм. случ
-                'sm': 0.001,
+                'sm': 0.009,
                 
                 'k': 1.38e-23,
                 'e0': 8.85E-12,
@@ -254,34 +245,42 @@ def ParLoader(prname=False, gcname=False):
                 'eps_0': 8.85e-12,  # Диэлектрическая постоянная [Ф/м]
                 'k_B': 1.380649e-23  # Постоянная Больцмана [Дж/К]
                 }
+        else:
+            with open(f"conf/{prname}.json5", 'r') as filepr:
+                par = json5.load(filepr)
+        if (vrname==False):
+            par['gas'] = "Ar"
+            par['p'] = 1 #Геометрия ?
+            par['l'] = 0.07 #electrode dist
+            par['R'] = 0.11767 #electrode diam
+            par['f'] = 80*1e6
+            #par['Vrf'] = 159.38543719750095
+            par['Pwr'] = 76.48886 #rf field params
         else: 
-            with open(f"conf/{prname}.json5", 'r') as file:
-                par = json5.load(file)
+            with open(f"conf/{prname}.json5", 'r') as filevr:
+                par.update(json5.load(filevr))
+                
         par['S1'] = np.pi*par['R']**2
         par['S2'] = 4*par['S1'] #произвольная геометрическая ассиметрия 4
-        par['V1'] = par['Vrf']/2
         par['omega'] = 2*np.pi*par['f']
-        par['d'] = par['l']-2*par['sm']
+        par['d'] = par['l']-2*par['sm'] 
         par['ng'] = (2*par['p'])/(3*par['k']*par['Ti'])
         par['lam_i'] = 1/(par['ng']*gas_params[par['gas']]['sig_i']) 
         par['lam_i_d'] = par['lam_i']/par['d']
         par['hl'] = 0.86*(3+par['d']/(2*par['lam_i']))**(-1/2)
         par['hR'] = 0.8*(4+par['R']/par['lam_i'])**(-1/2)
-        par['deff'] = 1/2*(par['R']*par['l']/(par['R']*par['hl']+par['l']*par['hR']))
+        par['deff'] = par['l']/(2*par['hl']) #1/2*par['R']*par['l']/(par['R']*par['hl']+par['l']*par['hR'])
                     
         return par
     
-    global gas_params
     gas_params = LoadGasPar()
-    global par
     par = LoadInitPar()
-    global out
     out = {}
     
     return par, gas_params, out
 
 
-def AltTe():
+def AltTe(par, gas_params, out):
     """
     Backup alternative function for Te evaluation produced by D.S.Samsonov.
     Capable of calculating only in Argon atmosphere.
@@ -362,7 +361,7 @@ def AltTe():
 Нахождение энергии электронов через баланс ионизации и ухода через дрейф
 """
         
-def TeCalc(verbose=False):
+def TeCalc(par, gas_params, out, verbose=False):
     """
     Function for calculating Electron temperature, rate constants and some additional parameters.
 
@@ -432,7 +431,7 @@ def TeCalc(verbose=False):
 
         """
         fun = lambda x: TeEquation(x, verbose=verbose)
-        Te_val = optimize.root_scalar(fun, bracket=[1, 7], x0=3, x1=5, xtol=1e-3, method='secant')
+        Te_val = optimize.root_scalar(fun, bracket=[1, 30], x0=3, x1=5, xtol=1e-3, method='brentq')
         Te = Te_val.root
         if verbose == True: 
             print(f'Te = {Te}')
@@ -497,15 +496,19 @@ def TeCalc(verbose=False):
 
         """
         Kel_integ = lambda v: (
-        (gas_params[par['gas']]['a1']+gas_params[par['gas']]['b1']*np.power(par['m']*v**2/(2*par['e']), gas_params[par['gas']]['c1']))/
-        (1+gas_params[par['gas']]['d1']*np.power(par['m']*v**2/(2*par['e']),gas_params[par['gas']]['e1']))+
-        (gas_params[par['gas']]['a2']+gas_params[par['gas']]['b2']*np.power(par['m']*v**2/(2*par['e']), gas_params[par['gas']]['c2']))/
-        (1+gas_params[par['gas']]['d2']*np.power(par['m']*v**2/(2*par['e']), gas_params[par['gas']]['e2']))
-        *v*np.exp(-(par['m']*(v**2)/(2*par['e']*Te_val)))*4*np.pi*v**2
+        (((gas_params[par['gas']]['a1']+gas_params[par['gas']]['b1']*np.power(par['m']*v**2/(2*par['e']), gas_params[par['gas']]['c1']))/
+        (1+gas_params[par['gas']]['d1']*np.power(par['m']*v**2/(2*par['e']),gas_params[par['gas']]['e1'])))+
+        ((gas_params[par['gas']]['a2']+gas_params[par['gas']]['b2']*np.power(par['m']*v**2/(2*par['e']), gas_params[par['gas']]['c2']))/
+        (1+gas_params[par['gas']]['d2']*np.power(par['m']*v**2/(2*par['e']), gas_params[par['gas']]['e2']))))
+        *v*np.exp(-(par['m']*(v**2)/(2*par['e'])/Te_val))*4*np.pi*v**2
         )
-        Kel = (1e-20*np.power((par['m']/(2*np.pi*par['e']*Te_val)), (3/2))*
+        Kel = (1e-20*np.power(par['m']/(2*np.pi*par['e']*Te_val), 3/2)*
         integrate.quad(Kel_integ, 0, 1e7)[0])
-        if verbose == True: print(f"Kel = {Kel}")
+        if verbose == True: 
+            print(f"Kel = {Kel}")
+            print(f'Kel_Integ = {integrate.quad(Kel_integ, 0, 1e7)}')
+            v=1e7
+            print(f"InInteg = {(1+gas_params[par['gas']]['d2']*np.power(par['m']*v**2/(2*par['e']), gas_params[par['gas']]['e2']))}")
         return Kel  
 
     def Kex_(Te_val, verbose=False):
@@ -597,12 +600,12 @@ def TeCalc(verbose=False):
         plt.legend()
         plt.show()
         
-    Te, ub = Te_(verbose=verbose)
-    Kiz = Kiz_(Te)
-    Kel = Kel_(Te)
-    Kex = Kex_(Te)
+    out['Te'], out['ub'] = Te_(verbose=verbose)
+    out['Kiz'] = Kiz_(out['Te'], verbose=verbose)
+    out['Kel'] = Kel_(out['Te'], verbose=verbose)
+    out['Kex'] = Kex_(out['Te'], verbose=verbose)
     if (verbose==True): TeEval()
-    return Te, ub, Kiz, Kel, Kex
+    return out
     
 
      
@@ -611,7 +614,7 @@ def TeCalc(verbose=False):
 Блок 2: Согласование мощности плазмы с целевой.
 """
 
-def VrfCalc(verbose=False):
+def VrfCalc(par, gas_params, out, verbose=False):
     """
     Function for calculating absorbed power and matching it by varying RF voltage. 
 
@@ -677,47 +680,10 @@ def VrfCalc(verbose=False):
             check['sm'].append(par['sm'])
             check['J1'].append(out['J1'])
             check['Sabs'].append(out['Sabs'])
-        """
-        par['Vrf'] = Vrf
-        par['V1'] = par['Vrf']/2
-        out['V'] = 0.83*par['V1']
-        out['vm'] = out['Kel']*par['ng']
-        out['xi_c'] = 1/out['Kiz']*(out['Kiz']*gas_params[par['gas']]['xi_iz']+
-                               out['Kex']*gas_params[par['gas']]['xi_ex']+
-                               (out['Kel']*3*par['m']*out['Te']/gas_params[par['gas']]['M']))
-        
-        out['Sohm'] = (1.73*par['m']*par['hl']/(2*par['e'])*par['e0']*par['omega']**2*out['vm']*
-                np.sqrt(1*out['Te'])*np.sqrt(1*par['V1'])*par['d'])
-        out['Sstoc'] = (0.45*np.sqrt(par['m']/par['e'])*par['e0']*par['omega']**2*
-                 np.sqrt(1*out['Te'])*par['V1'])
-        out['ns'] = ((out['Sohm']+2*out['Sstoc'])/
-                     (2*par['e']*out['ub']*
-                      (out['xi_c']+2*out['Te']+out['Te']*
-                       np.power(np.log(gas_params[par['gas']]['M']/
-                                      (2*np.pi*par['m'])), 1/2)+0.5*out['Te'])))
-
-        out['Ji'] = par['e']*out['ns']*out['ub']
-        out['sm'] = np.sqrt(0.82*par['e0']*np.power(out['V'], 3/2)/out['Ji']*
-                            np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
-        out['J1'] = 1.23*par['omega']*par['e0']/out['sm']*par['V1']
-        out['Sabs'] = (2*par['e']*out['ns']*out['ub']*
-                       (out['V']+out['xi_c']+2*out['Te']+out['Te']*
-                        np.power(np.log(gas_params[par['gas']]['M']/
-                                        (2*np.pi*par['m'])), 1/2)+0.5*out['Te'])
-                       *np.pi*np.power(par['R'], 2))
-
-
-        out['dS'] = out['Sabs'] - par['Pwr']
-        out['dPio'] = 2*par['e']*out['ns']*out['ub']*(gas_params[par['gas']]['xi_iz']+out['V'])/out['Sabs']
-        """
-        if (verbose==True): 
-                print(f'Vrf = {Vrf}')
-                print(f'Sabs = {out["Sabs"]}')
-                print(f'ns = {out["ns"]}')
-                print(f'Ji = {out["Ji_symm"]}')
-                
-        
-                
+            print(f'Vrf = {Vrf}')
+            print(f'Sabs = {out["Sabs"]}')
+            print(f'ns = {out["ns"]}')
+            print(f'Ji = {out["Ji_symm"]}')
         return out['Sabs'] - par['Pwr']
 
     def Vrf_(verbose=False):
@@ -727,7 +693,7 @@ def VrfCalc(verbose=False):
                               out["Kel"]*3*par["m"]*out["Te"]/gas_params[par['gas']]['M']))
         
         fun = lambda x : VrfEq(x, verbose=verbose)
-        VrfSolve = optimize.root_scalar(fun, bracket=[1e1, 1e4], x0=500, x1=5000, xtol=1e-3, method='brentq')
+        VrfSolve = optimize.root_scalar(fun, bracket=[1e1, 1e5], x0=500, x1=5000, xtol=1e-3, method='brentq')
         
         if verbose == True: print(f'VrfSolve = {VrfSolve}')
         return VrfSolve.root
@@ -820,16 +786,46 @@ def VrfCalc(verbose=False):
         plt.show()  
         
     Vrf = Vrf_(verbose=verbose) 
+    par['Vrf'] = Vrf
+    out['Vrf'] = Vrf
     if (verbose==True): 
         VrfEval()
         VrfDynEval()
 
-    return Vrf
+    return par, out
+
+def SabsCalc(par, gas_params, out, verbose=False):
+    
+    out["vm"] = out["Kel"]*par["ng"]
+    out["xi_c"] = (1/out["Kiz"]*(out["Kiz"]*gas_params[par['gas']]['xi_iz']+
+                          out["Kex"]*gas_params[par['gas']]['xi_ex']+
+                          out["Kel"]*3*par["m"]*out["Te"]/gas_params[par['gas']]['M']))
+    out['V1'] = par['Vrf']/2
+    out['Sohm'] = (1.73*par['m']*par['hl']/(2*par['e'])*par['e0']*par['omega']**2*out['vm']*
+            np.sqrt(out['Te'])*np.sqrt(out['V1'])*par['d'])
+    out['Sstoc'] = 0.45*np.sqrt(par['m']/par['e'])*par['e0']*par['omega']**2*np.sqrt(out['Te'])*out['V1']
+    out['ns'] = ((out['Sohm']+2*out['Sstoc'])
+    /(2*par['e']*out['ub']
+      *(out['xi_c']+2*out['Te']+out['Te']
+        *np.sqrt(np.log(gas_params[par['gas']]['M']/(2*np.pi*par['m'])))
+        +0.5*out['Te'])))
+    out['n0'] = out['ns']/par['hl']
+    out['V'] = 0.83*out['V1']
+    out['Ji_symm'] = par['e']*out['ns']*out['ub']
+    par['sm'] = np.sqrt(0.82*par['e0']*np.power(out['V'], 3/2)/out['Ji_symm']
+                        *np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
+    out['J1'] = 1.23*par['omega']*par['e0']/par['sm']*out['V1']
+    out['Sabs'] = (2*par['e']*out['ns']*out['ub']
+            *(out['V']+out['xi_c']+2*out['Te']+out['Te']
+              *np.sqrt(np.log(gas_params[par['gas']]['M']/(2*np.pi*par['m'])))
+              +0.5*out['Te'])*np.pi*par['R']**2)
+    out['dPio'] = 2*par['e']*out['ns']*out['ub']*(gas_params[par['gas']]['xi_iz']+out['V'])/out['Sabs']
+
+    return par, out
 
 
 
-
-def UbiasCalc():
+def UbiasCalc(par, gas_params, out, ):
     """
     Function for calculating Ubias voltage & other electrical parameters.
 
@@ -856,9 +852,9 @@ def UbiasCalc():
     out['V1_avg'] = out['Vp_avg']-out['Ubias'] #для симметричного случая
     out['V2_avg'] = out['Vp_avg']
     #out['V1_avg'] = np.power(par['S2']/par['S1'], 2.5-beta)*out['V2_avg'] #устаревший
-    return None
+    return out
 
-def dECalc():
+def dECalc(par, gas_params, out):
     """
     Function for calculating dE & other ion  parameters.
 
@@ -881,31 +877,13 @@ def dECalc():
     out['Ns1'] = out['Ji1']/par['e']
     out['Ns_symm'] = out['Ji_symm']/par['e']
     out['Ns2'] = out['Ji2']/par['e']
-    return None
+    return out
 
-def FiENorm():
-    """
-    FiE1 = lambda x: (2*out['Ns1']/(par['omega']*out['dEi1'])
-                     *np.power(np.abs(1-4*np.power(x-par['e']*out['V1_avg'], 2)
-                               /np.power(out['dEi1'], 2)), -0.5)*np.sign((1-4*np.power(x-par['e']*out['V1_avg'], 2)
-                                                                          /np.power(out['dEi1'], 2))))
-    #Заменить на автоподстановку названия
-    out['NN1'] = integrate.quad(FiE1, par['e']*out['V1_avg']+(out['dEi1']/2),
-                                      par['e']*out['V1_avg']+(out['dEi1']/2))[0]
-    FiE2 = lambda x: (2*out['Ns2']/(par['omega']*out['dEi2'])
-                     *np.power(1-4*np.power(x-par['e']*out['V2_avg'], 2)
-                               /np.power(out['dEi2'], 2), -0.5))
-    out['NN2'] = integrate.quad(FiE2, par['e']*out['V2_avg']+(out['dEi2']/2),
-                                      par['e']*out['V2_avg']+(out['dEi2']/2))[0]
-    FiE_symm = lambda x: (2*out['Ns_symm']/(par['omega']*out['dEi_symm'])
-                         *np.power(1-4*np.power(x-par['e']*out['Vp_symm'], 2)
-                                   /np.power(out['dEi_symm'], 2), -0.5))
-    out['NN_symm'] = integrate.quad(FiE_symm, par['e']*out['Vp_symm']+(out['dEi_symm']/2),
-                                      par['e']*out['Vp_symm']+(out['dEi_symm']/2))[0]
-    """
+def FiENorm(par, gas_params, out, verbose=False):
+    
     j_ = ['1','2','_symm','1_avg','2_avg','p_symm']
     el =  ['Mo', 'B', 'Si', 'MoO3']
-    xi_hilo = 250
+    xi_hilo = 330
     for j in [0,1,2]:
         FiE = lambda x: (2*out[f'Ns{j_[j]}']/(par['omega']*out[f'dEi{j_[j]}'])
                             *np.power(1-4*np.power(x-par['e']*out[f'V{j_[j+3]}'], 2)
@@ -919,38 +897,89 @@ def FiENorm():
                                 *(gas_params[par['gas']][f'w{i}']/
                                   (4*np.power(x/par['e']-gas_params[par['gas']][f'xc{i}'], 2)
                                    +np.power(gas_params[par['gas']][f'w{i}'], 2))))
-            if (out[f'V{j_[j+3]}'] < xi_hilo): 
+            
+            if ((out[f'V{j_[j+3]}'] < xi_hilo) and (i < 3)): 
                 gam1_eff = lambda x: (gam(x)*FiE(x)/out[f'NN{j_[j]}']*np.heaviside(x-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))
             else: 
                 gam1_eff = lambda x: (gas_params[par['gas']][f'gam_{el[i]}_hi'](x)*FiE(x)/out[f'NN{j_[j]}']*np.heaviside(x-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))
             out[f'Г{j_[j]}_{el[i]}_eff'] = (integrate.quad(gam1_eff, par['e']*out[f'V{j_[j+3]}']-(out[f'dEi{j_[j]}']/2),
                                                       par['e']*out[f'V{j_[j+3]}']+(out[f'dEi{j_[j]}']/2))[0])
-            #out[f'gam{j_[j]}_{el[i]}_eff_EV'] = out[f'Г{j_[j]}_{el[i]}_eff']*2
+            if (verbose==True):
+                print(f"mode {j_[j]}_{el[i]}  = {(out[f'V{j_[j+3]}'] > xi_hilo)}") 
+                try: 
+                    print(f"gamma low {j_[j]}_{el[i]} = {gam(par['e']*out[f'V{j_[j+3]}'])}")
+                except: ...
+                print(f"heaviside_{j_[j]}_{el[i]} = {(par['e']*out[f'V{j_[j+3]}']+(out[f'dEi{j_[j]}']/2))-gas_params[par['gas']][f'xi_{i}']*par['e']}")
+                print(f"gamma high {j_[j]}_{el[i]} = {(gas_params[par['gas']][f'gam_{el[i]}_hi'](par['e']*out[f'V{j_[j+3]}'])*FiE(par['e']*out[f'V{j_[j+3]}'])/out[f'NN{j_[j]}']*np.heaviside(par['e']*out[f'V{j_[j+3]}']-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))}")
+                print(f"gamma{j_[j]}_{el[i]}_eff_Integ = {gam1_eff(par['e']*out[f'V{j_[j+3]}'])}")
+                print(f"V{j_[j+3]} = {out[f'V{j_[j+3]}']}")
+                print(f"FiE{j_[j]} = {FiE(par['e']*out[f'V{j_[j+3]}'])}")
+                print(f"{'='*30}")
     for j in [0,1,2]:        
         out[f'd{j_[j]}_MoB'] = out[f'Г{j_[j]}_Mo_eff']/(out[f'Г{j_[j]}_B_eff']+out[f'Г{j_[j]}_Mo_eff']+1e-10)
         out[f'd{j_[j]}_MoO3'] = out[f'Г{j_[j]}_Mo_eff']/(out[f'Г{j_[j]}_MoO3_eff']+out[f'Г{j_[j]}_Mo_eff']+1e-10)
         
         for i in [0,1,3]:
             out[f'd{j_[j]}M_{el[i]}'] = out[f'Ji{j_[j]}']/(par['e']*par['N_A']*1e3)*par[f'M_{el[i]}']*out[f'Г{j_[j]}_{el[i]}_eff']
-            out[f'd{j_[j]}H_{el[i]}'] = out[f'd{j_[j]}M_{el[i]}']/par[f'ro_{el[i]}']
+            out[f'd{j_[j]}H_{el[i]}'] = out[f'd{j_[j]}M_{el[i]}']/par[f'ro_{el[i]}']*6e10
     
-    
+    return out
     
             
 
 
-def main(verbose=False):
-    
-    ParLoader()
-    out['Te'], out['ub'], out['Kiz'], out['Kel'], out['Kex'] = TeCalc(verbose=verbose)
-    if (verbose == True): print(f"{'='*20}\n\n\n Vrf \n\n\n{'='*20}")
-    par['Vrf'] = VrfCalc(verbose=verbose)
-    out['Vrf'] = par['Vrf']
-    UbiasCalc()
-    dECalc()
-    FiENorm()
+def main(prname=False, vrname=False, gcname=False, verbose=False):
+    err = False
+    try: 
+        try: par, gas_params, out = ParLoader(prname=prname, vrname=vrname, gcname=gcname)
+        except: 
+            err = f"{'⚠'*20}\nUnable to load initial parameters\n{'⚠'*20}"
+            print(err)
+            sys.exit(1)
+        try: out.update(TeCalc(par, gas_params, out, verbose=verbose))
+        except: 
+            err = f"{'⚠'*20}\nElectron temperature and/or rate coefficients can't be calculated\n{'⚠'*20}"
+            print(err)
+            sys.exit(2)
+        if (par['Pwr']):
+            try:
+                par_, out_ = VrfCalc(par, gas_params, out, verbose=verbose)
+                par.update(par_)
+                out.update(out_)
+            except: 
+                err = f"{'⚠'*20}\nCan't calculate Vrf from given Pwr\n{'⚠'*20}"
+                print(err)
+                sys.exit(31)
+        elif (par['Vrf']):
+            try:
+                par_, out_ = SabsCalc(par, gas_params, out)
+                par.update(par_)
+                out.update(out_)
+            except:
+                err = f"{'⚠'*20}\nCan't calculate Sabs from given Vrf\n{'⚠'*20}"
+                print(err)
+                sys.exit(32)
+        try:
+            out.update(UbiasCalc(par, gas_params, out))
+        except:
+            err = f"{'⚠'*20}\nCan't calculate Ubias and/or other circuit parameters\n{'⚠'*20}"
+            print(err)
+            sys.exit(4)
+        try:
+            out.update(dECalc(par, gas_params, out))
+        except:
+            err = f"{'⚠'*20}\nCan't calculate dEi\n{'⚠'*20}"
+            print(err)
+            sys.exit(5)
+        try:
+            out.update(FiENorm(par, gas_params, out, verbose=verbose))
+        except:
+            err = f"{'⚠'*20}\nUnable to find etching params\n{'⚠'*20}"
+            print(err)
+            sys.exit(6)
+    finally: 
+        return par, out, err
 
-main(verbose=False)
-
-    
+par, out, err = main(verbose=False)
 print('Execution time: %s seconds' % (time.time() - start_time))
+sys.exit(0)
