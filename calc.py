@@ -1,4 +1,5 @@
 import time
+import typing
 import matplotlib.pyplot as plt
 from scipy import optimize, integrate
 import numpy as np
@@ -226,24 +227,14 @@ def ParLoader(prname=False, vrname=False, gcname=False):
                 'M_Mo': 95.95,
                 'ro_MoO3': 4.9e3,
                 'M_MoO3': 95.95+3*16,
-                
-                'e': 1.6e-19,
-
-                
-                 #потенциал плазмы и слоя в симм. случ
+                'e': 1.6e-19, # Заряд электрона [Кл]
                 'sm': 0.009,
-                
-                'k': 1.38e-23,
-                'e0': 8.85E-12,
+                'k': 1.380649e-23,   # Постоянная Больцмана [Дж/К]
+                'e0': 8.85E-12,  # Диэлектрическая постоянная [Ф/м]
                 'N_A': 6.022e23,
                 'Ti': 300,
                 'Tn': 300,
-                'm': 9.1e-31,
-                'qe': 1.6e-19,  # Заряд электрона [Кл]
-                'me': 9.11e-31,  # Масса электрона [кг]
-                'Mi': 6.6335209e-26 - 9.1093837e-31,  # Масса иона Ar [кг]
-                'eps_0': 8.85e-12,  # Диэлектрическая постоянная [Ф/м]
-                'k_B': 1.380649e-23  # Постоянная Больцмана [Дж/К]
+                'm': 9.11e-31,  # Масса электрона [кг]
                 }
         else:
             with open(f"conf/{prname}.json5", 'r') as filepr:
@@ -256,25 +247,58 @@ def ParLoader(prname=False, vrname=False, gcname=False):
             par['f'] = 80*1e6
             #par['Vrf'] = 159.38543719750095
             par['Pwr'] = 76.48886 #rf field params
-        else: 
+            par['Assy'] = 2
+        elif (type(vrname)==dict):
+            par.update(vrname)
+        elif (type(vrname)==str): 
             with open(f"conf/{prname}.json5", 'r') as filevr:
                 par.update(json5.load(filevr))
-                
-        par['S1'] = np.pi*par['R']**2
-        par['S2'] = 4*par['S1'] #произвольная геометрическая ассиметрия 4
-        par['omega'] = 2*np.pi*par['f']
-        par['d'] = par['l']-2*par['sm'] 
-        par['ng'] = (2*par['p'])/(3*par['k']*par['Ti'])
-        par['lam_i'] = 1/(par['ng']*gas_params[par['gas']]['sig_i']) 
-        par['lam_i_d'] = par['lam_i']/par['d']
-        par['hl'] = 0.86*(3+par['d']/(2*par['lam_i']))**(-1/2)
-        par['hR'] = 0.8*(4+par['R']/par['lam_i'])**(-1/2)
-        par['deff'] = par['l']/(2*par['hl']) #1/2*par['R']*par['l']/(par['R']*par['hl']+par['l']*par['hR'])
+        par['f']*=1e6   
+        try:
+            par['S1']=par['S1']
+        except:
+            par['S1'] = np.pi*par['R']**2
+        try:
+            par['S2']=par['S2']
+        except:
+            par['S2'] = par['Assy']*par['S1'] #произвольная геометрическая ассиметрия 4
+        try:
+            par['omega']=par['omega']
+        except:
+            par['omega'] = 2*np.pi*par['f']
+        try:
+            par['d']=par['d']
+        except:
+            par['d'] = par['l']-2*par['sm'] 
+        try:
+            par['ng']=par['ng']
+        except:
+            par['ng'] = (2*par['p'])/(3*par['k']*par['Ti'])
+        try:
+            par['lam_i']=par['lam_i']
+        except:
+            par['lam_i'] = 1/(par['ng']*gas_params[par['gas']]['sig_i']) 
+        try:
+            par['lam_i_d']=par['lam_i_d']
+        except:
+            par['lam_i_d'] = par['lam_i']/par['d']
+        try:
+            par['hl']=par['hl']
+        except:
+            par['hl'] = 0.86*(3+par['d']/(2*par['lam_i']))**(-1/2)
+        try:
+            par['hR']=par['hR']
+        except:
+            par['hR'] = 0.8*(4+par['R']/par['lam_i'])**(-1/2)
+        try:
+            par['deff']=par['deff']
+        except:
+            par['deff'] = par['l']/(2*par['hl']) #1/2*par['R']*par['l']/(par['R']*par['hl']+par['l']*par['hR'])
                     
         return par
     
-    gas_params = LoadGasPar()
-    par = LoadInitPar()
+    gas_params = LoadGasPar(gcname=gcname)
+    par = LoadInitPar(prname=prname, vrname=vrname)
     out = {}
     
     return par, gas_params, out
@@ -431,7 +455,7 @@ def TeCalc(par, gas_params, out, verbose=False):
 
         """
         fun = lambda x: TeEquation(x, verbose=verbose)
-        Te_val = optimize.root_scalar(fun, bracket=[1, 30], x0=3, x1=5, xtol=1e-3, method='brentq')
+        Te_val = optimize.root_scalar(fun, bracket=[1e-3, 30], x0=3, x1=5, xtol=1e-3, method='brentq')
         Te = Te_val.root
         if verbose == True: 
             print(f'Te = {Te}')
@@ -693,7 +717,7 @@ def VrfCalc(par, gas_params, out, verbose=False):
                               out["Kel"]*3*par["m"]*out["Te"]/gas_params[par['gas']]['M']))
         
         fun = lambda x : VrfEq(x, verbose=verbose)
-        VrfSolve = optimize.root_scalar(fun, bracket=[1e1, 1e5], x0=500, x1=5000, xtol=1e-3, method='brentq')
+        VrfSolve = optimize.root_scalar(fun, bracket=[1e1, 1e10], x0=500, x1=5000, xtol=1e-3, method='secant')
         
         if verbose == True: print(f'VrfSolve = {VrfSolve}')
         return VrfSolve.root
@@ -865,10 +889,10 @@ def dECalc(par, gas_params, out):
 
     """
 
-    out['dEi1'] = (4*np.power(par['e']*out['V1_avg'], 1.5) #194.37009
+    out['dEi1'] = (4*np.power(par['e']*np.abs(out['V1_avg']), 1.5)*np.sign(out['V1_avg']) #194.37009
                    /(par['omega']*out['sm1']*np.sqrt(2*gas_params[par['gas']]['M'])))
     out['dEi1 [eV]'] = out['dEi1']/par['e']
-    out['dEi2'] = (4*np.power(par['e']*out['V2_avg'], 1.5) #18.75306
+    out['dEi2'] = (4*np.power(par['e']*np.abs(out['V2_avg']), 1.5)*np.sign(out['V2_avg']) #18.75306
                    /(par['omega']*out['sm2']*np.sqrt(2*gas_params[par['gas']]['M'])))
     out['dEi2 [eV]'] = out['dEi2']/par['e']
     out['dEi_symm'] = (4*np.power(par['e']*out['Vp_symm'], 1.5) #167.38546
@@ -928,7 +952,7 @@ def FiENorm(par, gas_params, out, verbose=False):
             
 
 
-def main(prname=False, vrname=False, gcname=False, verbose=False):
+def calc(prname=False, vrname=False, gcname=False, verbose=False):
     err = False
     try: 
         try: par, gas_params, out = ParLoader(prname=prname, vrname=vrname, gcname=gcname)
@@ -980,6 +1004,6 @@ def main(prname=False, vrname=False, gcname=False, verbose=False):
     finally: 
         return par, out, err
 
-par, out, err = main(verbose=False)
-print('Execution time: %s seconds' % (time.time() - start_time))
-sys.exit(0)
+#par, out, err = calc(verbose=False)
+#print('Execution time: %s seconds' % (time.time() - start_time))
+#sys.exit(0)
