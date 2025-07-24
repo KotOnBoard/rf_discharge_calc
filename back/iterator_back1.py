@@ -3,11 +3,10 @@ import pandas as pd
 from datetime import datetime
 import time
 import pyjson5
-import sys
 start_time = time.time()
 
-def Loader(confname):
-    with open(f"conf/{confname}", 'r') as file:
+def Loader(confname='conf'):
+    with open(f"conf/{confname}.json5", 'r') as file:
         par = pyjson5.load(file)
     return par
 
@@ -47,14 +46,10 @@ def evol(_par: dict, iter_par:dict, output, recur=0):
             output = pd.concat([output, _out], axis=0)
     return output        
     
-def main(confname='conf.json5', filename='parameters'):
-    if len(sys.argv)>1 :
-        if len(sys.argv)>2:
-            confname, filename = sys.argv[1], sys.argv[2]
-        else: 
-            confname = sys.argv[1]
-    par = Loader(confname)
+def main():
+    par = Loader()
     iter_par = Parcer(par)
+    filename = par['filename']
     output = iterator(par, iter_par)
     output.to_excel(f'output/{filename}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.xlsx')
     return output
