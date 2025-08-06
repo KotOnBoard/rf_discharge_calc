@@ -35,33 +35,30 @@ def evol(_par: dict, iter_par:dict, output, recur=0):
             output = evol(_par=_par, iter_par=iter_par, output=output, recur=recur+1)
     else:
         if (len(output)==0):
-            __par, __err = calc.calc(vrname=_par)
+            __par, __out, __err = calc.calc(vrname=_par)
             par_ = pd.DataFrame(__par, index=[0])
-            output = par_
+            out_ = pd.DataFrame(__out, index=[0])
+            output = pd.merge(par_, out_, left_index=True, right_index=True)
         else:
-            __par, __err = calc.calc(vrname=_par)
+            __par, __out, __err = calc.calc(vrname=_par)
             par_ = pd.DataFrame(__par, index=[len(output)])
-            output = pd.concat([output, par_], axis=0)
+            out_ = pd.DataFrame(__out, index=[len(output)])
+            _out = pd.merge(par_, out_, left_index=True, right_index=True)
+            output = pd.concat([output, _out], axis=0)
     return output        
     
-def main(confname='conf.json5', filename='parameters', filtername=False):
+def main(confname='conf.json5', filename='parameters'):
     if len(sys.argv)>1 :
         if len(sys.argv)>2:
-            if len(sys.argv)>3:
-                confname, filename, filtername = sys.argv[1], sys.argv[2], sys.argv[3]
-            else: confname, filename = sys.argv[1], sys.argv[2]
-        else: confname = sys.argv[1]
+            confname, filename = sys.argv[1], sys.argv[2]
+        else: 
+            confname = sys.argv[1]
     par = Loader(confname)
     iter_par = Parcer(par)
     output = iterator(par, iter_par)
-    if filtername==False:
-        output.to_excel(f'output/{filename}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.xlsx')
-    else:
-        with open(f"conf/{filtername}", 'r') as file:
-            filt = pyjson5.load(file)
-        output.loc[:,filt].to_excel(f'output/{filename}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.xlsx')
+    output.to_excel(f'output/{filename}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.xlsx')
     return output
     
 
 main()
-#print('Execution time: %s seconds' % (time.time() - start_time))
+print('Execution time: %s seconds' % (time.time() - start_time))
