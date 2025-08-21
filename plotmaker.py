@@ -39,7 +39,7 @@ def RequestFormatter(args):
                 if ',' in arg:
                     if args.filterby: print("⚠AmbiguousInputWarning: Both Terminal and File filterby arguments are given. In cases like that Terminal input takes priority. It's advised to use only one filterby origin.")
                     else:
-                        filtr = arg.lstrip(string.ascii_lowercase).lstrip('([{<').rstrip('>)]}').split(',')
+                        filtr = arg.lstrip(string.ascii_lowercase).lstrip("([{<'").rstrip("'>)]}").split(',')
                         if len(filtr)%2: raise IndexError('Some parameters of "filterby" are missing. Number of parameters must be divisible by 2.')
                         else: 
                             a = list(range(0,len(filtr),2))

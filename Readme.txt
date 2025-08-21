@@ -2,9 +2,9 @@
 Rf-Discharge is a python script for numerical calculations and visualisation of plasma parameters.
 
 
-	1. Architecture
+		1. Architecture
 
-Program consists of 3 main scripts interacting with each other's output sequentially.
+	Program consists of 3 main scripts interacting with each other's output sequentially.
 
 	calc.py - core module for calculating operating point of plasma discharge based on input parameters.
 This module can comprehend only static non-iterator parameters of float or string.
@@ -18,14 +18,14 @@ Feeds array of float & string in unified dictionary directly into calc.py and ad
 Based on Excel table visualises relations between input and output parameters.
 
 
-	2. Module use and interaction.
+		2. Module use and interaction.
 
 	Current version of script is controlled by plain text files and terminal calls or series of them in batch file.
 All input files should be placed within \conf folder (exception: Excel table made by scanner.py for plotmaker.py).
 	The results of this program are Excel tables with wide array of numerically calculated parameters and PNG plots.
 Output files are placed in \output directory or it's subdirectories if specified in argument.
 
-	2.1. Calc
+		2.1. Calc
 	
 	This core module is not intended for direct access.
 As input it recieves dictionary of float or str parameters as following:
@@ -44,33 +44,33 @@ As input it recieves dictionary of float or str parameters as following:
 Full array of output parameters can be looked up in Example.xlsx.
 
 	
-	2.2. Scanner
+		2.2. Scanner
 
 	Currently this module is controlled only by text file and accepts two required positional arguments:
 >>> python scanner.py <confname>.<extension> <Tablename>
 
 	<confname>.<extension> - is supposed to be a path to a plain text file with valid initial parameters.
-example: conf.json5
+Example: conf.json5
 
 	Program should be able to comprehend any plain text format: .txt, .json, .json5 and others.
 	Configuration file should be inside \conf, or in it's subdirectories 
-example: to acces file in \conf\subdir\conf.txt pass:
+Example: to acces file in \conf\subdir\conf.txt pass:
 >>> python scanner.py subdir/conf.txt <Tablename>
 
 	<Tablename> - is a name of output excel table, automatically placed in \output folder.
 	As the fite type can be only .xlsx, this argument should be specified without extension
-example: Sample
+Example: Sample
 	
 	If file supposed to be placed in subdirectory of \output, you can specify it in this argument as following
-example: to place output file by name Sample1.xlsx in path \output\subdir\Sample.xlsx pass:
+Example: to place output file by name Sample1.xlsx in path \output\subdir\Sample.xlsx pass:
 >>> python scanner.py subdir/Sample1
 
 	As two files with the same name can't exist in the same folder, if the exact same name is passed it's replased by:
 	\output\<name>_<number of files with that name>
-example: Sample_1, Sample_2, etc.
+Example: Sample_1, Sample_2, etc.
 
 
-	2.2.1 Confname structure
+		2.2.1. Confname structure
 
 	Example of valid input parameters and syntaxis is shown in 2.1.
 
@@ -87,15 +87,15 @@ Example 2:
 
 	If the list of parameters to be itrated on is too long, it's way easier to specify it as a range.
 When passed as 'range(<a>,<b>,<c>)' this, program will automatically constuct a list from <a> to <b> with a step of <c>.
-Note that <b> is NOT included in constructed list and the value MUST be enclosed in '' as shown.
+!Note that <b> is NOT included in constructed list and the value MUST be enclosed in '' as shown.
 
 	Word "range" and brackets actually can be replaced by any other or thown out entirely: 
-example: 'asd[1,10,1]', '{4,14,2}', '1,10,0.5'
+Example: 'asd[1,10,1]', '{4,14,2}', '1,10,0.5'
 	
 	The important part is that it's value is a string and includes ',' between 3 numbers <a>, <b>, <c>.
 
 
-	2.3. Plotmaker
+		2.3. Plotmaker
 
 	Plotmaker recieves no positional arguments, only keyword arguments for user convinience.
 
@@ -106,30 +106,254 @@ Arguments:
 	--filename (--f) : path
 		Name and extension of configuration file, specifying which relations to plot.
 
+	-show (-s) : Switch
+		If passed, shows resulting plot in separate window (pauses terminal untill plot window closed)
+
 	--construct (--c) : list
 		If not configurated by text file, a list of relations can be passed to plot them.
-
-	--dim (--d) : 2 or 3 (default=2)
-		Dimensions of plots: relation of one output value to one input value or to two input values.
-
-	--shared (--s) : None, x or y (default=None)
-		Defines if any of the axis of plots are shared.
-
-	--layout (--l) : {'constrained', 'compressed', 'tight', 'none' or None}, (default='tight')
-		Specifies what type of matplotlib layout will be used in a figure.
 
 	--out (--o) : Name or Path without extension
 		Changes name and/or subdirectory of output PNG file.
 
-	-show (-s) : Switch
-		If passed, shows resulting plot in separate window (pauses terminal untill plot window closed)
-
 	-filterby (-f) : list
 		Clears input table from any unwanted values to reduce the dimensions of input data.
+
+	--shared (--s) : None, x or y (default=None)
+		Defines if any of the axis of plots are shared.
+
+	-log (-l) : x, y or xy
+		Makes specified axis of the plots to be logarithmic.
+
+	--dim (--d) : 2 or 3 (default=2)
+		Dimensions of plots: if passed as 3, will create 3D plot.
+
+	--layout (--l) : {'constrained', 'compressed', 'tight', 'none' or None}, (default='tight')
+		Specifies what type of matplotlib layout will be used in a figure.
 
 	-trans (-t) : boolean (default=False)
 		Transposes tiling of multiple plots on one figure.
 
-	-log (-l) : x, y or xy
-		Makes specified axis of the plots to be logarithmic.
 	
+		2.3.1. Basic request
+
+	To plot a figure, you can pass a terminal request with 2 required arguments:
+>>> python plotmaker.py --t Tablename --f Plot.json
+
+	It will create most basic 2d plot in PNG file named Tablename, containing relations from Tablename.xlsx specified in Plot.json with valid formatting.
+Examples of valid request file formatting are given in /conf. 
+Tablename.xlsx must be first created by scanner.py with one variable parameter 
+(if multiple parameters are varied, look up "filterby" or "dimensions" below).
+	
+	If you also want resulting figure to be shown fir quick check-up, you can add <-s> to the request:
+>>> python plotmaker.py --t Tablename --f Plot.json -s
+
+	To make plotting wide array of graphs less tideous, you can avoid using files entirely.
+To create a plot without conf.json file you can pass a request with the same formatting in <--construct> or <--c> 
+as a terminal argument:
+>>> python plotmaker.py --t Tablename --c [['p','Te']] -s
+
+	Guidance for request formatting in file.json or as --construct argument are given below in 2.3.2.
+
+	Resulting PNG file is named <Tablename> and placed in \output directory.
+To change that pass <--out <path>> or <--o <path>> without extension:
+>>> python plotmaker.py --t Tablename --c [['p','Te']] -s --o subdirectory/chosenName
+
+	Currently you can't change file extension from PNG.
+
+
+		2.3.2. Request formatting
+
+	To work properly, Plot.json must contain python list with separate lists of valid Table keys for every subfigure:
+Example: [['p','Te']]
+
+	Key in the first position will become x-axis and all trailing keys will be y-axis.
+Example: [['f','dEi2 [eV]','dEi1 [eV]','dEi_symm [eV]']] will create a plot with 'f' on the x-axis and 3 separate y-axis for every 'dEi' on the same plot.
+
+	If multiple lists passed within parent-list, plotmaker will plot all of the separately on the same figure.
+Example: [['f','dEi1 [eV]'],['f','dEi2 [eV]'],['f','dEi_symm [eV]']] will craete PNG file with 3 separate figures.
+
+
+			2.3.2.1. Filterby as file argument
+
+	In some cases dimensions of data in Tablename.xlsx can be higher, resulting in a figure with multiple lines on top of each other.
+To reduce dimensions of data you can add string argument 'filterby' in request file:
+Example: [['f','dEi2 [eV]','dEi1 [eV]','dEi_symm [eV]'], 'filterby(gas,Ar)']
+
+	Similar to 'range' in scanner.py request, word 'filterby' or brackets are not required.
+Any string within parent list containing ',' will qualify as'filterby' argument.
+
+	Filterby argument accepts one or miltiple pairs of values - table key and a value for it to be filtered by:
+Example: [['f','dEi2 [eV]','dEi1 [eV]','dEi_symm [eV]'], 'filterby(gas,Ar,f,80)']
+
+	In this case the figure will be plotted only by values with gas='Ar' AND f=80 MHz. 
+
+
+			2.3.2.2. Filterby as terminal argument
+	
+	Same result can be achieved by passing <-filterby filterby(gas,Ar,f,80)> or <-f gas,Ar,f,80> with the same formatting throug terminal.
+!Note that if filterby specified both in file and in terminal, script will notify about it in output and always pick the file one, ignoring terminal.
+
+
+		2.3.3. Scaling
+
+	If you want to uniform the y scaling on the figure with multiple axis or between all separate figures, you can pass <--shared y>:
+>>> python plotmaker.py --t Tablename --f Plot.json --s y -s
+
+	In that case, all of the y axis of resulting figure will be equal (It's not advised to equate y-axis with different units).
+
+	To make x, y or both axis logarithmic pass <-log> argument with a value of target axis:
+>>> python plotmaker.py --t Tablename --f Plot.json --s y -s -l y
+
+	For both axis to be targeted, specify both of them without separation:
+>>> python plotmaker.py --t Tablename --f Plot.json --s y -s -l xy
+
+		2.3.4. 3D plots
+
+	To see the relation to two input parameters on the same figure or parse 3 dimensional data, you can use <--dim 3>:
+>>> python plotmaker.py --t Tablename --f Plot.json --d 3 -s
+
+	For this function to work all plot requests in parent list must contain 3 Table keys:
+Example: [['f','dEi1 [eV]','gas'],['f','dEi2 [eV]','gas'],['f','dEi_symm [eV]','gas']]
+
+	The first one is x-axis, the second is y-axis and the third is false-z-axis of a plot.
+Plotmaker will group all matching values of 3rd key in unique curves and plot all of them with a legend
+!Note that plotmaker currently groups only perfect matches, so it's not advised to output parameter as z-axis.
+	
+		2.3.5. Layout
+
+	To choose layout of a figure from default matplotlib figure layouts, pass it's nsme as <--layout> or <--l> argument:
+>>> python plotmaker.py --t Tablename --f Plot.json -s --l compressed
+
+		2.3.6. Tiling
+	
+	When more than 3 plots are given, plotmaker will tile them in columns of 2, 3 or 4 vertically.
+To transpose tiling of multiple plots you can pass <-transe> or <-t> switch:
+>>> python plotmaker.py --t Tablename --f Plot.json -s -t
+
+
+		Appendix A: valid input and output parameters
+
+	1. Input patameters
+
+1.1 Physical constants & misc:
+'ro_B': Boron density [?]. Default=2.34e3	
+'M_B': Boron atomic mass [?]. Default=10.81
+'ro_Mo': Molibdenum density [?]. Default=10.2e3
+'M_Mo':	Molibdenum atomic mass [?]. Default=95.95
+'ro_MoO3': Molibdenum trioxide density [?]. Default=4.9e3
+'M_MoO3': Molibdenum trioxide atomic mass [?]. Default=95.95+3*16
+'e': Electron carge [С]. Default=1.6e-19
+'sm': Sheath thickness [m]. Default=0.009. Also an output parameter.
+'k': Boltsman constant [J/K]. Default=1.380649e-23
+'e0': Vacuum dielectric constant [F/m]. Default=8.85E-12,  # Диэлектрическая постоянная [Ф/м]
+'N_A': Avogadro constant. Default=6.022e23,
+'Ti': ???. Default=300,
+'Tn': ???. Default=300,
+'m': Electron mass [kg]. Default=9.11e-31,
+
+1.2 Required:
+'gas': atmosphere of plasma discharge. 'He', 'Ne' or 'Ar'.
+'l': length of discharge gap [m].
+'R': radius of circular cathode [m].
+'f': frequency of RF volatage [MHz].
+'Assy': Asymmetry coefficient.
+'p': Pressure within discharge cahamber [?].
+'Pwr': Power that will be absorbed by plasma [W].
+
+1.3 Calculated:
+'Vrf': Amplitude of RF voltage on the electrodes [V]. Usually an output parameter.
+'S1': Surface of first electrode [m^2]. Default=Pi*'R'^2
+'S2': Surface of second electrode [m^2]. Default='Assy'*'S1'
+'omega': Angular current frequency [rad/s]. Default=2*Pi*'f'
+'d': ??? Default='l'-2*'sm'
+'ng': ??? Default=(2*'p')/(3*'k'*'Ti')
+'lam_i': Lambda ??? 
+'lam_i_d': Lambda ???. Default='lam_i'/'d'
+'hl': ???
+'hR': ???
+'deff': Effective ?'d'?.
+
+*all input parameters can be changed if specified in request, but it's not advised.
+	
+
+	2. Output parameters
+
+'Te': Electron temperature [eV].
+'ub': Bohm velosity [m/s].
+'Kiz': Ionisation rate constant.
+'Kel': Elastic scattering rate constant.
+'Kex': Exitation constant.
+'vm': ???
+'xi_c':	Complete reaction cost.
+'V1': RF amplitude of a single electrode [V].
+'Sohm':	Ohmic heating power [W].
+'Sstoc': Stohastic heating power [W]
+'ns': ???
+'n0': Plasma density [?]
+'V': Working rf amplitude [V].
+'Ji_symm': Symmetrical ion current density [A/m^2].
+'J1': ???.
+'Sabs':	Power absorbed by plasma [W].
+'dPio':	???
+'Vrf': Amplitude of RF voltage on the electrodes [V].
+'Vf': ???
+'sm2': ???
+'sm1': ???
+'ns2': ???
+'ns1': ???
+'Ji1': Working electrode ion current density [A/m^2].
+'Ji2': Grounded electrode ion current density [A/m^2]
+'C1':	
+'C2':	
+'Vp_amp':	
+'Vp_avg':	
+'Vp_symm':	
+'Ubias': Bias voltage [V].	
+'V1_avg':	
+'V2_avg':	
+'dEi1':	Ion energy distribution by working electrode [J].
+'dEi1 [eV]': Ion energy distribution by working electrode [eV].
+'dEi2': Ion energy distribution by grounded electrode [J].	
+'dEi2 [eV]': Ion energy distribution by grounded electrode [eV].	
+'dEi_symm': Symmetrical ion energy distribution [J].
+'dEi_symm [eV]': Symmetrical ion energy distribution [eV].
+'Ns1':	
+'Ns2':
+'Ns_symm':	
+'NN1':
+'NN2':
+'NN_symm':
+'Г1_Mo_eff':	
+'Г1_B_eff':	
+'Г1_MoO3_eff':		
+'Г2_Mo_eff':	
+'Г2_B_eff':	
+'Г2_MoO3_eff':		
+'Г_symm_Mo_eff':	
+'Г_symm_B_eff':	
+'Г_symm_MoO3_eff':	
+'d1_MoB':	
+'d1_MoO3':
+'d2_MoB':	
+'d2_MoO3':
+'d_symm_MoB':	
+'d_symm_MoO3':		
+'d1M_Mo':
+'d1M_B':
+'d1M_MoO3':	
+'d1H_Mo':		
+'d1H_B':		
+'d1H_MoO3':		
+'d2M_Mo':
+'d2M_B':
+'d2M_MoO3':	
+'d2H_Mo':		
+'d2H_B':	
+'d2H_MoO3':	
+'d_symmM_Mo':
+'d_symmM_B':
+'d_symmM_MoO3':
+'d_symmH_Mo':		
+'d_symmH_B':		
+'d_symmH_MoO3':	
+'mi': Mass of gas ion [kg].
