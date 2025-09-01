@@ -1,6 +1,32 @@
 	Following documentation specifies capabilities and ways to use Rf_Discharge.
 Rf-Discharge is a python script for numerical calculations and visualisation of plasma parameters.
 
+		0. Contents
+
+	1 Architecture
+	2 Module use and interaction.
+		2.1 Calc
+		2.2 Scanner
+			2.2.1 Keyword arguments
+				2.2.1.1 --confname <confname>.<extension>
+				2.2.1.2 --filename <Tablename>
+			2.2.2 Confname structure
+				2.2.2.1 Text file argument 'pair'
+		2.3 Plotmaker
+			2.3.1 Basic request
+			2.3.2 Request formatting
+				2.3.2.1 Filterby as file argument
+				2.3.2.2 Filterby as terminal argument
+			2.3.3 Scaling
+			2.3.4 3D plots
+			2.3.5 Layout
+			2.3.6 Tiling
+	Appendix A - valid input and output parameters
+		A.1 Input patameters
+			A.1.1 Physical constants & misc
+			A.1.2 Required
+			A.1.3 Calculated
+		A.2 Output parameters
 
 		1. Architecture
 
@@ -46,9 +72,21 @@ Full array of output parameters can be looked up in Example.xlsx.
 	
 		2.2. Scanner
 
-	Currently this module is controlled only by text file and accepts two required positional arguments:
->>> python scanner.py <confname>.<extension> <Tablename>
+	Currently this module is controlled only by text file and accepts three keyword arguments:
+>>> python scanner.py --c <confname>.<extension> --f <Tablename> -h
+		
+		2.2.1. Keyword arguments
 
+	--confname (or --c) is a directory and/or name of a configuration file 
+from which initial parameters are configured.
+
+	--filename (or --f) is optional name for resulting table.
+
+	-tutor (or -t) is a switch that diasbles annoying help and double checks. 
+You can disable it with this argument if you know what you're doing.
+
+		2.2.1.1. --confname <confname>.<extension>
+	
 	<confname>.<extension> - is supposed to be a path to a plain text file with valid initial parameters.
 Example: conf.json5
 
@@ -56,7 +94,9 @@ Example: conf.json5
 	Configuration file should be inside \conf, or in it's subdirectories 
 Example: to acces file in \conf\subdir\conf.txt pass:
 >>> python scanner.py subdir/conf.txt <Tablename>
-
+		
+		2.2.1.2. --filename <Tablename>
+	
 	<Tablename> - is a name of output excel table, automatically placed in \output folder.
 	As the fite type can be only .xlsx, this argument should be specified without extension
 Example: Sample
@@ -70,7 +110,7 @@ Example: to place output file by name Sample1.xlsx in path \output\subdir\Sample
 Example: Sample_1, Sample_2, etc.
 
 
-		2.2.1. Confname structure
+		2.2.2. Confname structure
 
 	Example of valid input parameters and syntaxis is shown in 2.1.
 
@@ -93,7 +133,14 @@ When passed as 'range(<a>,<b>,<c>)' this, program will automatically constuct a 
 Example: 'asd[1,10,1]', '{4,14,2}', '1,10,0.5'
 	
 	The important part is that it's value is a string and includes ',' between 3 numbers <a>, <b>, <c>.
+		
+		2.2.2.1 Text file argument 'pair'
 
+	Currently only one text file argument is implemented.
+	If inside parent-list of config there will be a string 'pair' after dictionary with parameters,
+program will check for any lists with equal length, and if there is only one group with equal length,
+then iterator will provide them in pairs by index, while combining that pair with all other iterative arguments.
+	
 
 		2.3. Plotmaker
 

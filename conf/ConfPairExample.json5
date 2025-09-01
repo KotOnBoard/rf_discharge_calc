@@ -1,0 +1,9 @@
+[{
+	'gas': ['Ar'],
+	'l': 0.15,
+	'R': 0.0565,
+	'f': 'range[10,101,1]', #ranges of equal length
+	'Pwr': 30,
+	'Assy': 4,
+	'p': 'range[1,10.1,0.1]', #ranges of equal length
+}, 'pair']

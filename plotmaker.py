@@ -108,8 +108,9 @@ def Plot(args, d, ar):
     match args.dim:
         case '2':
             for i in range(n):
-                try: params.pop(params.index(ar[i][0]))
-                except: pass
+                for p in range(len(ar[i])):
+                    try: params.pop(params.index(ar[i][p]))
+                    except: pass
                 match args.shared:
                     case None: 
                         ax = [host_subplot(grd.SubplotSpec(grd.GridSpec(nrows,ncols), i), axes_class=axisartist.Axes)]
@@ -117,6 +118,7 @@ def Plot(args, d, ar):
                             ax.append(ax[0].twinx())
                             ax[j].axis['right'] = ax[j].new_fixed_axis(loc="right", offset=(60*(j-1), 0))
                         for j in range(1,len(ar[i])):
+                            ax[j-1].axhline(y=0, xmin=0, xmax=1, color='black')
                             p,=ax[j-1].plot(d[ar[i][0]], d[ar[i][j]], label=ar[i][j], marker='.')
                             ax[j-1].set_ylabel(ar[i][j])
                             if j==1: ax[j-1].axis['left'].label.set_color(p.get_color())
@@ -124,6 +126,7 @@ def Plot(args, d, ar):
                     case 'x'|'y': 
                         ax = fig.add_subplot(grd.SubplotSpec(grd.GridSpec(nrows,ncols), i), sharey=ax)
                         for j in range(1,len(ar[i])):
+                            ax.axhline(y=0, xmin=0, xmax=1, color='black')
                             ax.plot(d[ar[i][0]], d[ar[i][j]], label=ar[i][j], marker='.')
                     case 'y': ax = fig.add_subplot(grd.SubplotSpec(grd.GridSpec(nrows,ncols), i), sharey=ax)
                 
@@ -142,10 +145,12 @@ def Plot(args, d, ar):
                 plt.xlabel(ar[i][0])
                 if args.shared:
                     plt.ylabel(str([ar[i][j] for j in range(1,len(ar[i]))]).lstrip('[').rstrip(']').replace("'",""))
+                plt.legend()
         case '3':
             for i in range(len(ar)):
-                try: params.pop(params.index(ar[i][0]))
-                except: pass
+                for p in range(len(ar[i])):
+                    try: params.pop(params.index(ar[i][p]))
+                    except: pass
                 key = pd.unique(d[ar[i][2]])
                 match args.shared:
                     case None: ax = fig.add_subplot(grd.SubplotSpec(grd.GridSpec(nrows,ncols), i))
@@ -168,7 +173,7 @@ def Plot(args, d, ar):
                             plt.xscale('log')
                 plt.xlabel(ar[i][0])
                 plt.ylabel(ar[i][1])
-    plt.legend()
+                plt.legend()
     title = ''
     for i in params:
         title+=f"{i} = "

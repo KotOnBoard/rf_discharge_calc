@@ -227,7 +227,7 @@ def ParLoader(prname=False, vrname=False, gcname=False):
                 'ro_MoO3': 4.9e3,
                 'M_MoO3': 95.95+3*16,
                 'e': 1.6e-19, # Заряд электрона [Кл]
-                'sm': 0.002,
+                'sm': 0.009,
                 'k': 1.380649e-23,   # Постоянная Больцмана [Дж/К]
                 'e0': 8.85E-12,  # Диэлектрическая постоянная [Ф/м]
                 'N_A': 6.022e23,
@@ -541,8 +541,9 @@ def VrfCalc(par, gas_params, verbose=False):
     
              
     def VrfEq(Vrf, verbose=False):
-        par['d'] = par['l']-2*par['sm']
-        par['hl'] = 0.86*np.power(3+par['d']/(2*par['lam_i']),(-1/2))
+        #par['d'] = par['l']-2*par['sm']
+        #par['hl'] = 0.86*np.power(np.abs(3+par['d'])/(2*par['lam_i']),(-1/2))*np.sign(3+par['d'])
+        
         par['V1'] = np.abs(Vrf)/2
         par['Sohm'] = (1.73*par['m']*par['hl']/(2*par['e'])*par['e0']*par['omega']**2*par['vm']*
                 np.sqrt(par['Te'])*np.sqrt(par['V1'])*par['d'])
@@ -555,17 +556,14 @@ def VrfCalc(par, gas_params, verbose=False):
         par['n0'] = par['ns']/par['hl']
         par['V'] = 0.83*par['V1']
         par['Ji_symm'] = par['e']*par['ns']*par['ub']
-        #print('Ji_symm =',par['Ji_symm'],' V^3/2 =',np.power(par['V'], 3/2))
         par['sm'] = np.sqrt(0.82*par['e0']*np.power(par['V'], 3/2)/par['Ji_symm']
                             *np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
-        #par['sm'] = 0.002
         par['J1'] = 1.23*par['omega']*par['e0']/par['sm']*par['V1']
         par['Sabs'] = (2*par['e']*par['ns']*par['ub']
                 *(par['V']+par['xi_c']+2*par['Te']+par['Te']
                   *np.sqrt(np.log(gas_params[par['gas']]['M']/(2*np.pi*par['m'])))
                   +0.5*par['Te'])*np.pi*par['R']**2)
         par['dPio'] = 2*par['e']*par['ns']*par['ub']*(gas_params[par['gas']]['xi_iz']+par['V'])/par['Sabs']
-        #par['d'] = par['l']-2*par['sm']
         
         if (verbose==True) :
             check['d'].append(par['d'])
@@ -594,7 +592,7 @@ def VrfCalc(par, gas_params, verbose=False):
                               par["Kel"]*3*par["m"]*par["Te"]/gas_params[par['gas']]['M']))
         
         fun = lambda x : VrfEq(x, verbose=verbose)
-        VrfSolve = optimize.root_scalar(fun, x0=500, x1=5000, xtol=1e-3, method='secant')
+        VrfSolve = optimize.root_scalar(fun, bracket=[1e0, 1e10], x0=500, x1=5000, xtol=1e-3, method='brentq')
         
         if (verbose==True): print(f'VrfSolve = {VrfSolve}')
         return VrfSolve.root
@@ -831,67 +829,53 @@ def calc(prname=False, vrname=False, gcname=False, verbose=False):
     try: 
         try: par, gas_params = ParLoader(prname=prname, vrname=vrname, gcname=gcname)
         except: 
-            err = 1#"Unable to load initial parameters"
-            #print(err)
+            err = f"{'⚠'*20}\nUnable to load initial parameters\n{'⚠'*20}"
+            print(err)
             sys.exit(1)
-        error_lock = True
-        recur_count = 0
-        while error_lock:
-            temp_d = par['d']
-            try: par.update(TeCalc(par, gas_params, verbose=verbose))
+        try: par.update(TeCalc(par, gas_params, verbose=verbose))
+        except: 
+            err = f"{'⚠'*20}\nElectron temperature and/or rate coefficients can't be calculated\n{'⚠'*20}"
+            print(err)
+            sys.exit(2)
+        if 'Pwr' in par:
+            try:
+                par_ = VrfCalc(par, gas_params, verbose=verbose)
+                par.update(par_)
             except: 
-                err = 2#"Electron temperature and/or rate coefficients can't be calculated"
-                #print(err)
-                sys.exit(2)
-            if 'Pwr' in par:
-                try:
-                    par_ = VrfCalc(par, gas_params, verbose=verbose)
-                    par.update(par_)
-                except: 
-                    err = 3#"Can't calculate Vrf from given Pwr"
-                    #print(err)
-                    sys.exit(31)
-            elif 'Vrf' in par:
-                try:
-                    par_ = SabsCalc(par, gas_params)
-                    par.update(par_)
-                except:
-                    err = 3#"Can't calculate Sabs from given Vrf"
-                    #print(err)
-                    sys.exit(32)
-            if not(par['d']>temp_d*1.1 or par['d']<temp_d*0.9):
-                error_lock = False
-                #print(f'+++d error is achieved. d = {par["d"]}.+++')
-            elif recur_count>20:
-                error_lock = False
-            else:
-                #print(f'---d error is {par["d"]-temp_d}. Recalculating Te & Vrf...---')
-                recur_count+=1
+                err = f"{'⚠'*20}\nCan't calculate Vrf from given Pwr\n{'⚠'*20}"
+                print(err)
+                sys.exit(31)
+        elif 'Vrf' in par:
+            try:
+                par_ = SabsCalc(par, gas_params)
+                par.update(par_)
+            except:
+                err = f"{'⚠'*20}\nCan't calculate Sabs from given Vrf\n{'⚠'*20}"
+                print(err)
+                sys.exit(32)
         try:
             par.update(UbiasCalc(par, gas_params))
         except:
-            err = 4#"Can't calculate Ubias and/or other circuit parameters"
-            #print(err)
+            err = f"{'⚠'*20}\nCan't calculate Ubias and/or other circuit parameters\n{'⚠'*20}"
+            print(err)
             sys.exit(4)
-        
         try:
             par.update(dECalc(par, gas_params))
         except:
-            err = 5#"Can't calculate dEi"
-            #print(err)
+            err = f"{'⚠'*20}\nCan't calculate dEi\n{'⚠'*20}"
+            print(err)
             sys.exit(5)
         try:
             par.update(FiENorm(par, gas_params, verbose=verbose))
         except:
-            err = 6#"Unable to find etching params"
-            #print(err)
+            err = f"{'⚠'*20}\nUnable to find etching params\n{'⚠'*20}"
+            print(err)
             sys.exit(6)
-           
     finally: 
         par['mi']=gas_params[par['gas']]['M']
         par['f']=par['f']/1e6
         return par, err
 
-#par, err = calc(verbose=False)
+par, err = calc(verbose=False)
 #print('Execution time: %s seconds' % (time.time() - start_time))
 #sys.exit(0)
