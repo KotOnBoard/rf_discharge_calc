@@ -73,7 +73,7 @@ Full array of output parameters can be looked up in Example.xlsx.
 		2.2. Scanner
 
 	Currently this module is controlled only by text file and accepts three keyword arguments:
->>> python scanner.py --c <confname>.<extension> --f <Tablename> -h
+>>> python scanner.py --c <confname>.<extension> --f <Tablename> -t
 		
 		2.2.1. Keyword arguments
 
@@ -289,10 +289,10 @@ To transpose tiling of multiple plots you can pass <-transe> or <-t> switch:
 'M_Mo':	Molibdenum atomic mass [?]. Default=95.95
 'ro_MoO3': Molibdenum trioxide density [?]. Default=4.9e3
 'M_MoO3': Molibdenum trioxide atomic mass [?]. Default=95.95+3*16
-'e': Electron carge [С]. Default=1.6e-19
+'e': Electron carge [Г‘]. Default=1.6e-19
 'sm': Sheath thickness [m]. Default=0.009. Also an output parameter.
 'k': Boltsman constant [J/K]. Default=1.380649e-23
-'e0': Vacuum dielectric constant [F/m]. Default=8.85E-12,  # Диэлектрическая постоянная [Ф/м]
+'e0': Vacuum dielectric constant [F/m]. Default=8.85E-12,  # Г„ГЁГЅГ«ГҐГЄГІГ°ГЁГ·ГҐГ±ГЄГ Гї ГЇГ®Г±ГІГ®ГїГ­Г­Г Гї [Г”/Г¬]
 'N_A': Avogadro constant. Default=6.022e23,
 'Ti': ???. Default=300,
 'Tn': ???. Default=300,
@@ -370,15 +370,15 @@ To transpose tiling of multiple plots you can pass <-transe> or <-t> switch:
 'NN1':
 'NN2':
 'NN_symm':
-'Г1_Mo_eff':	
-'Г1_B_eff':	
-'Г1_MoO3_eff':		
-'Г2_Mo_eff':	
-'Г2_B_eff':	
-'Г2_MoO3_eff':		
-'Г_symm_Mo_eff':	
-'Г_symm_B_eff':	
-'Г_symm_MoO3_eff':	
+'Гѓ1_Mo_eff':	
+'Гѓ1_B_eff':	
+'Гѓ1_MoO3_eff':		
+'Гѓ2_Mo_eff':	
+'Гѓ2_B_eff':	
+'Гѓ2_MoO3_eff':		
+'Гѓ_symm_Mo_eff':	
+'Гѓ_symm_B_eff':	
+'Гѓ_symm_MoO3_eff':	
 'd1_MoB':	
 'd1_MoO3':
 'd2_MoB':	
@@ -403,4 +403,5 @@ To transpose tiling of multiple plots you can pass <-transe> or <-t> switch:
 'd_symmH_Mo':		
 'd_symmH_B':		
 'd_symmH_MoO3':	
+
 'mi': Mass of gas ion [kg].
