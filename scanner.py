@@ -29,7 +29,7 @@ def ArgParcer():
     parse.add_argument('-tutor', '-tutor', action='store_false', default=True)
     #parse.add_argument('args', nargs=argparse.REMAINDER)
     arg = parse.parse_args()
-    #args.confname = 'conf.json5'
+    #arg.confname = 'PLA-55.json5'
     #args.filename = 'test'
     
     return arg
@@ -75,11 +75,8 @@ def PairRevolver(pair, par, iter_par, progress):
         for key in pair_par:
             par[key]=pair_par[key][index]
         out, err = RecurIterator(par, iter_par, progress)
-        if (len(output)==0): 
-            output = pd.DataFrame(out, index=[0])
-        else: 
-            _out = pd.DataFrame(out, index=[len(output)])
-            output = pd.concat([output, _out], axis=0)
+        _out = pd.DataFrame(out)
+        output = pd.concat([output, _out], axis=0)
     return output, progress
 
 def PairChooser(pairs, par):
