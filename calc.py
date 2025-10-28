@@ -255,6 +255,8 @@ def ParLoader(prname=False, vrname=False, gcname=False):
         par['f']*=1e6 
         if 'S1' not in par:
             par['S1'] = np.pi*par['R']**2
+        else: 
+            par['R'] = np.sqrt(par['S1']/np.pi)
         if 'S2' not in par:
             par['S2'] = par['Assy']*par['S1'] #произвольная геометрическая ассиметрия 4
         if 'omega' not in par:
