@@ -6,6 +6,10 @@ import os
 import argparse
 import numpy as np
 import string
+from tqdm import tqdm
+from functools import reduce
+from numpy import cumprod
+from multiprocessing import Pool
 
 def Loader(confname):
     with open(f"conf/{confname}", 'r') as file:
@@ -34,22 +38,16 @@ def ArgParcer():
     
     return arg
 
-def ParameterParser(par):
+def ParameterParser(par): #Не очищать словарь от постоянных значений
     flush = list(par.keys())
-    iter_par = {}
     for i in flush:
         match par[f'{i}']:
-            case list():
-                iter_par[f'{i}']=par[f'{i}']
-                par.pop(f'{i}')
             case str():
                 if ',' in par[f'{i}']:
                     unfold = par[f'{i}'].lstrip(string.ascii_lowercase).lstrip('([{<').rstrip('>)]}').split(',')
-                    #print('===',unfold)
-                    iter_par[f'{i}']=np.arange(float(unfold[0]),float(unfold[1]),float(unfold[2]))
-                    par.pop(f'{i}')
-    pairs = PairFinder(iter_par)
-    return iter_par, pairs
+                    par[f'{i}']=np.arange(float(unfold[0]),float(unfold[1]),float(unfold[2]))
+    pairs = PairFinder(par)
+    return par, pairs
 
 def PairFinder(iter_par):
     keys = list(iter_par.keys())
@@ -64,20 +62,6 @@ def PairFinder(iter_par):
         if len(pairs[key])<2: pairs.pop(key)    
     return pairs
 
-def PairRevolver(pair, par, iter_par, progress):
-    output = pd.DataFrame({})
-    pair_par={}
-    for key in pair:
-        if key in iter_par: 
-            pair_par[key] = iter_par[key]
-            iter_par.pop(key)
-    for index in range(len(pair_par[pair[0]])):
-        for key in pair_par:
-            par[key]=pair_par[key][index]
-        out, err = RecurIterator(par, iter_par, progress)
-        _out = pd.DataFrame(out)
-        output = pd.concat([output, _out], axis=0)
-    return output, progress
 
 def PairChooser(pairs, par):
     pair = input(f'Multiple ranges with equal length are detected: {pairs}\nPlease specify which pair to iterate over or press Enter to iterate over combinations.\n(e.g. p,Pwr)\n>>> ').split(',')
@@ -89,73 +73,97 @@ def PairChooser(pairs, par):
             return pair
         case _: raise ValueError("'pair' kwarg is provided but only one key is specified.")
 
-def printProgressBar (progress, err, printEnd = "\r"):
-    progress[0]+=1    
-    match err:
-        case 1: progress[1]+=1
-        case 2: progress[2]+=1
-        case 3: progress[3]+=1
-        case 4: progress[4]+=1
-        case 5: progress[5]+=1
-        case 6: progress[6]+=1          
-    print(f'\rIteration: {progress[0]}|Te: {progress[0]-np.sum(progress[1:3])}/{progress[0]} |Vrf: {progress[0]-np.sum(progress[1:4])}/{progress[0]} |Ubias: {progress[0]-np.sum(progress[1:5])}/{progress[0]} |dEi: {progress[0]-np.sum(progress[1:6])}/{progress[0]} |Selectivity: {progress[0]-np.sum(progress[1:7])}/{progress[0]}', end = printEnd)
-    return progress
-def RecurIterator(par, iter_par, progress):
-    output = pd.DataFrame({})
-    if (len(iter_par) > 0):
-        output, progress = evol(_par=par, iter_par=iter_par, output=output, progress=progress)
-    else:
-        output, err = calc.calc(vrname=par) 
-        progress = printProgressBar(progress, err)
-    return output, progress
+def Iterator(args, par, pair=None):
+    #pair_lenght = 
+    _par = par
+    pair_par={}
+    if pair:
+        for key in pair:
+            if key in _par: 
+                pair_par[key] = _par[key]
+                _par.pop(key)
+        ky = list(pair_par.keys())
+        pl = len(list(pair_par.values())[0])
+    else: pl = 1
+    kx = list(_par.keys())
+    ln_a = [len(i) for i in _par.values()] + [1, ]
+    ln_a.reverse()
+    x = cumprod(ln_a).tolist()
+    x.reverse()
+    ml = reduce(lambda x, y: x*y, ln_a)
+    
+    
+    
+    pool = Pool() #defaults to number of available CPU's
 
-def evol(_par: dict, iter_par:dict, output, progress, recur=0):
-    if (recur<len(iter_par.keys())):
-        for i in list(iter_par[f'{list(iter_par.keys())[recur]}']):
-            _par[f'{list(iter_par.keys())[recur]}'] = i
-            output, progress = evol(_par=_par, iter_par=iter_par, output=output, progress=progress, recur=recur+1)
-    else:
-        if (len(output)==0):
-            __par, err = calc.calc(vrname=_par)
-            par_ = pd.DataFrame(__par, index=[0])
-            output = par_
-            progress = printProgressBar(progress, err)
-        else:
-            __par, err = calc.calc(vrname=_par)
-            par_ = pd.DataFrame(__par, index=[len(output)])
-            output = pd.concat([output, par_], axis=0)
-            progress = printProgressBar(progress, err)
-    return output, progress        
+    prev_i=0
+    arr = []
+    for i in tqdm(range(ml*pl)):
+        inter = []
+        inter_d = {}
+        if pair:
+            for k in ky:
+                inter_d[k] = pair_par[k][i//ml]
+        _i = i%ml
+        for j in range(len(x)-1):
+            inter.append(_par[kx[j]][_i%x[j]//x[j+1]])
+     
+        for k,v in zip(kx, inter):
+            inter_d[k] = v
+        arr.append(inter_d)
+        if (i%int(np.sqrt(ml*pl)) == 0) or (i == ml*pl-1):
+            #print(arr)
+            ret = pool.map(calc.main, arr) # тут как раз все заморачиваться должно
+            #print(ret)
+            dump_out(ret, args, prev_i+2)
+            arr = []
+            prev_i = i
+    pass
 
-def Iterator(kwargs, iter_par, pairs, par, progress):
+def dump_out(output, args, i):
+    out = pd.DataFrame(output)
+    if os.path.isfile(args.path): 
+        with pd.ExcelWriter(args.path,mode='a',engine="openpyxl",if_sheet_exists="overlay") as writer:
+            out.to_excel(writer, startrow=i, header=False, index=False)
+    else: 
+        with pd.ExcelWriter(args.path, engine='xlsxwriter') as writer:
+            out.to_excel(writer, index=False)
+    
+    pass
+
+      
+
+def ForkLoader(args, kwargs, pairs, par):
     match kwargs:
         case None:
-            output, progress = RecurIterator(par, iter_par, progress)
+            Iterator(args, par)
         case list():
             if 'pair' in kwargs:
                 if len(pairs)==1:
                     pair = pairs[list(pairs.keys())[0]]
                     if len(pair)==2:
-                        output, progress = PairRevolver(pair, par, iter_par, progress)
+                        start_time = time.time()
+                        Iterator(args, par, pair)
+                        print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                     elif len(pair)>2:
                         print(f'Warning: more than two parameters are paired: {pair}\nIteration will be completed over all of them.')
-                        output, progress = PairRevolver(pair, par, iter_par, progress)
+                        start_time = time.time()
+                        Iterator(args, par, pair)
+                        print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                 elif len(pairs)>1:
                     pair = PairChooser(pairs, par)
                     if pair:
-                        timer()
-                        output, progress = PairRevolver(pair, par, iter_par, progress)
+                        start_time = time.time()
+                        Iterator(args, par, pair)
+                        print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                     else:
-                        timer()
-                        output, progress = RecurIterator(par, iter_par, progress)
+                        start_time = time.time()
+                        Iterator(args, par)
+                        print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                 else: raise IndexError("Can't iterate in pairs because parameter ranges are different lengths.")
-    return output, progress
-
-def timer():
-    global start_time
-    start_time = time.time()
+    return
     
-def mainHelper(args, progress):
+def FrameworkHelper(args):
     if not(args.confname):
         args.confname = input('Enter coniguration file name with extension (e.g. confexample.json5)\n>>> ')
     par, kwargs = Loader(args.confname)
@@ -166,7 +174,8 @@ def mainHelper(args, progress):
                 args.filename = args.confname.split('.')[0]
             case _:
                 args.filename = filename
-    iter_par, pairs = ParameterParser(par)
+    args.path = path_setter(args)    
+    par, pairs = ParameterParser(par)
     match kwargs:
         case list():
             if 'pair' in kwargs:
@@ -175,28 +184,34 @@ def mainHelper(args, progress):
                     match switch:
                         case '': 
                             pair = pairs[list(pairs.keys())[0]]
-                            timer()
-                            output, progress = PairRevolver(pair, par, iter_par, progress)
+                            start_time = time.time()
+                            Iterator(args, par, pair)
+                            print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                         case 'N':
-                            timer()
-                            output, progress = RecurIterator(par, iter_par, progress)
+                            start_time = time.time()
+                            Iterator(args, par)
+                            print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                         case 'C':
                             pair = PairChooser(pairs, par)
                             if pair:
-                                timer()
-                                output, progress = PairRevolver(pair, par, iter_par, progress)
+                                start_time = time.time()
+                                Iterator(args, par, pair)
+                                print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                             else:
-                                timer()
-                                output, progress = RecurIterator(par, iter_par, progress)
+                                start_time = time.time()
+                                Iterator(args, par)
+                                print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                         case _: raise KeyboardInterrupt('Program exit')
                 elif len(pairs)>1:
                     pair = PairChooser(pairs, par)
                     if pair:
-                        timer()
-                        output, progress = PairRevolver(pair, par, iter_par, progress)
+                        start_time = time.time()
+                        Iterator(args, par, pair)
+                        print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                     else:
-                        timer()
-                        output, progress = RecurIterator(par, iter_par, progress)
+                        start_time = time.time()
+                        Iterator(args, par)
+                        print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                 else: raise IndexError("Can't iterate in pairs because parameter ranges are different lengths.")
         case _:
             match len(pairs):
@@ -205,76 +220,71 @@ def mainHelper(args, progress):
                     match switch:
                         case '': 
                             pair = pairs[list(pairs.keys())[0]]
-                            timer()
-                            output, progress = PairRevolver(pair, par, iter_par, progress)
+                            start_time = time.time()
+                            Iterator(args, par, pair)
+                            print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                         case 'N': 
-                            timer()
-                            output, progress = RecurIterator(par, iter_par, progress)
+                            start_time = time.time()
+                            Iterator(args, par)
+                            print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                         case 'C':
-                            timer()
                             pair = PairChooser(pairs, par)
                             if pair:
-                                timer()
-                                output, progress = PairRevolver(pair, par, iter_par, progress)
+                                start_time = time.time()
+                                Iterator(args, par, pair)
+                                print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                             else:
-                                timer()
-                                output, progress = RecurIterator(par, iter_par, progress)
+                                start_time = time.time()
+                                Iterator(args, par)
+                                print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                         case _: raise KeyboardInterrupt('Program exit')
                 case 2:
                     pair = PairChooser(pairs, par)
                     if pair:
-                        timer()
-                        output, progress = PairRevolver(pair, par, iter_par, progress)
+                        start_time = time.time()
+                        Iterator(args, par, pair)
+                        print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                     else:
-                        timer()
-                        output, progress = RecurIterator(par, iter_par, progress)
+                        start_time = time.time()
+                        Iterator(args, par)
+                        print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                 case _: 
                     switch = input('No kwargs and no pairs found.\nPress Enter for combination iteration or type exit for exit.\n')
                     match switch:
                         case '': 
-                            timer()
-                            output, progress = RecurIterator(par, iter_par, progress)
+                            start_time = time.time()
+                            Iterator(args, par)
+                            print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
                         case _: raise KeyboardInterrupt('Program exit')
-    return output, progress, args
-    
-def main(confname='conf.txt', filename='Test', filtername=False):   
-    args = ArgParcer()
-    progress = [0,0,0,0,0,0,0]
-    if args.tutor:
-        output, progress, args = mainHelper(args, progress)
+    return
+
+def path_setter(args):
+    if '/' in args.filename:
+        subdir = 'output/' + args.filename.rstrip(string.ascii_letters).rstrip('/')
+        if not(os.path.isdir(subdir)):
+            os.makedirs(subdir)
+    if not os.path.isfile(f'output/{args.filename}.xlsx'):
+        path = f'output/{args.filename}.xlsx'
     else:
-        #if args.confname:
+        filenum = 1
+        while (os.path.isfile(f'output/{args.filename}_{filenum}.xlsx')==True):
+            filenum+=1
+        else: path = f'output/{args.filename}_{filenum}.xlsx'
+    return path
+    
+def Framework(confname='conf.txt', filename='Test', filtername=False):   
+    args = ArgParcer()
+    if args.tutor:
+        FrameworkHelper(args)
+    else:
         par, kwargs = Loader(args.confname)
-        #elif args.tutor:
-        #    args.confname = input('Define config name with valid parameters and subdirectory, if needed.\nExample: confexample.json5\n')
-        #    par = Loader(args.confname)
-        iter_par, pairs = ParameterParser(par)
-        timer()
-        output, progress = Iterator(kwargs, iter_par, pairs, par, progress)
-    if True:#args.filtername==None:
-        if '/' in args.filename:
-            subdir = 'output/' + args.filename.rstrip(string.ascii_letters).rstrip('/')
-            if not(os.path.isdir(subdir)):
-                os.makedirs(subdir)
-        if not os.path.isfile(f'output/{args.filename}.xlsx'):
-            output.to_excel(f'output/{args.filename}.xlsx')
-        else:
-            filenum = 1
-            while (os.path.isfile(f'output/{args.filename}_{filenum}.xlsx')==True):
-                filenum+=1
-            else: output.to_excel(f'output/{args.filename}_{filenum}.xlsx')
-        '''else:
-            with open(f"conf/{args.filtername}", 'r') as file:
-                filt = pyjson5.load(file)
-            if not os.path.isfile(f'output/{args.filename}.xlsx'):
-                output.loc[:,filt].to_excel(f'output/{args.filename}.xlsx')
-            else:
-                filenum = 1
-                while (os.path.isfile(f'output/{args.filename}_{filenum}.xlsx')==True):
-                    filenum+=1
-                else: output.loc[:,filt].to_excel(f'output/{args.filename}_{filenum}.xlsx')'''
-        return output
+        par, pairs = ParameterParser(par)
+        args.path = path_setter(args)  
+            
+        ForkLoader(args, kwargs, pairs, par)
+    return
     
 
-main()
-print('\nCompleted successfully.\nExecution time: %s seconds' % (time.time() - start_time))
+if __name__ == '__main__':
+    Framework()
+

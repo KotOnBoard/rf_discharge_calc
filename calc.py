@@ -867,71 +867,71 @@ def FiENorm(par, gas_params, verbose=False):
             
 
 
-def calc(prname=False, vrname=False, gcname=False, verbose=False):
-    err = False
-    try: 
-        try: par, gas_params = ParLoader(prname=prname, vrname=vrname, gcname=gcname)
-        except: 
-            err = 1#"Unable to load initial parameters"
-            #print(err)
-            sys.exit(1)
-        error_lock = True
-        recur_count = 0
-        while error_lock:
-            temp_d = par['d']
-            try: par.update(TeCalc(par, gas_params, verbose=verbose))
+def main(vrname=False, prname=False, gcname=False, verbose=False):
+        err = False
+        try: 
+            try: par, gas_params = ParLoader(prname=prname, vrname=vrname, gcname=gcname)
             except: 
-                err = 2#"Electron temperature and/or rate coefficients can't be calculated"
+                err = 1#"Unable to load initial parameters"
                 #print(err)
-                sys.exit(2)
-            if 'Pwr' in par:
-                try:
-                    par_ = VrfCalc(par, gas_params, verbose=verbose)
-                    par.update(par_)
+                sys.exit(1)
+            error_lock = True
+            recur_count = 0
+            while error_lock:
+                temp_d = par['d']
+                try: par.update(TeCalc(par, gas_params, verbose=verbose))
                 except: 
-                    err = 3#"Can't calculate Vrf from given Pwr"
+                    err = 2#"Electron temperature and/or rate coefficients can't be calculated"
                     #print(err)
-                    sys.exit(31)
-            elif 'Vrf' in par:
-                try:
-                    par_ = SabsCalc(par, gas_params)
-                    par.update(par_)
-                except:
-                    err = 3#"Can't calculate Sabs from given Vrf"
-                    #print(err)
-                    sys.exit(32)
-            if not(par['d']>temp_d*1.1 or par['d']<temp_d*0.9):
-                error_lock = False
-                #print(f'+++d error is achieved. d = {par["d"]}.+++')
-            elif recur_count>20:
-                error_lock = False
-            else:
-                #print(f'---d error is {par["d"]-temp_d}. Recalculating Te & Vrf...---')
-                recur_count+=1
-        try:
-            par.update(UbiasCalc(par, gas_params))
-        except:
-            err = 4#"Can't calculate Ubias and/or other circuit parameters"
-            #print(err)
-            sys.exit(4)
-        
-        try:
-            par.update(dECalc(par, gas_params))
-        except:
-            err = 5#"Can't calculate dEi"
-            #print(err)
-            sys.exit(5)
-        try:
-            par.update(FiENorm(par, gas_params, verbose=verbose))
-        except:
-            err = 6#"Unable to find etching params"
-            #print(err)
-            sys.exit(6)
-           
-    finally: 
-        par['mi']=gas_params[par['gas']]['M']
-        par['f']=par['f']/1e6
-        return par, err
+                    sys.exit(2)
+                if 'Pwr' in par:
+                    try:
+                        par_ = VrfCalc(par, gas_params, verbose=verbose)
+                        par.update(par_)
+                    except: 
+                        err = 3#"Can't calculate Vrf from given Pwr"
+                        #print(err)
+                        sys.exit(31)
+                elif 'Vrf' in par:
+                    try:
+                        par_ = SabsCalc(par, gas_params)
+                        par.update(par_)
+                    except:
+                        err = 3#"Can't calculate Sabs from given Vrf"
+                        #print(err)
+                        sys.exit(32)
+                if not(par['d']>temp_d*1.1 or par['d']<temp_d*0.9):
+                    error_lock = False
+                    #print(f'+++d error is achieved. d = {par["d"]}.+++')
+                elif recur_count>20:
+                    error_lock = False
+                else:
+                    #print(f'---d error is {par["d"]-temp_d}. Recalculating Te & Vrf...---')
+                    recur_count+=1
+            try:
+                par.update(UbiasCalc(par, gas_params))
+            except:
+                err = 4#"Can't calculate Ubias and/or other circuit parameters"
+                #print(err)
+                sys.exit(4)
+            
+            try:
+                par.update(dECalc(par, gas_params))
+            except:
+                err = 5#"Can't calculate dEi"
+                #print(err)
+                sys.exit(5)
+            try:
+                par.update(FiENorm(par, gas_params, verbose=verbose))
+            except:
+                err = 6#"Unable to find etching params"
+                #print(err)
+                sys.exit(6)
+               
+        finally: 
+            par['mi']=gas_params[par['gas']]['M']
+            par['f']=par['f']/1e6
+            return par
 
 #par, err = calc(verbose=False)
 #print('Execution time: %s seconds' % (time.time() - start_time))
