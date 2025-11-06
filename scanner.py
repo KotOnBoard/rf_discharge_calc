@@ -10,7 +10,7 @@ from tqdm import tqdm
 from functools import reduce
 from numpy import cumprod
 from multiprocessing import Pool
-
+import csv
 def Loader(confname):
     with open(f"conf/{confname}", 'r') as file:
         _par = pyjson5.load(file)
@@ -98,7 +98,7 @@ def Iterator(args, par, pair=None):
 
     prev_i=0
     arr = []
-    for i in tqdm(range(ml*pl)):
+    for i in range(ml*pl):
         inter = []
         inter_d = {}
         if pair:
@@ -111,14 +111,26 @@ def Iterator(args, par, pair=None):
         for k,v in zip(kx, inter):
             inter_d[k] = v
         arr.append(inter_d)
-        if (i%int(np.sqrt(ml*pl)) == 0) or (i == ml*pl-1):
+        """if (i%10000 == 0) or (i == ml*pl-1):
             #print(arr)
             ret = pool.map(calc.main, arr) # тут как раз все заморачиваться должно
             #print(ret)
             dump_out(ret, args, prev_i+2)
             arr = []
-            prev_i = i
+            prev_i = i"""
+    ret = pool.map(calc.main, tqdm(arr))
+    print("Calculation complete! Exporting... (this migh take a while)")
+    #dump_out(ret, args, prev_i+2)  
+    dump_back(ret, args)
     pass
+
+def dump_back(out, args):
+    keys = out[0].keys()
+
+    with open(args.path, 'w', newline='') as output_file:
+        dict_writer = csv.DictWriter(output_file, keys)
+        dict_writer.writeheader()
+        dict_writer.writerows(out)
 
 def dump_out(output, args, i):
     out = pd.DataFrame(output)
@@ -168,7 +180,7 @@ def FrameworkHelper(args):
         args.confname = input('Enter coniguration file name with extension (e.g. confexample.json5)\n>>> ')
     par, kwargs = Loader(args.confname)
     if not(args.filename):
-        filename = input(f'Specify output file name without extension and subdirectory (if needed) or press Enter for {args.confname.split('.')[0]}.xlsx\n(e.g. Example)\n>>> ')
+        filename = input(f"Specify output file name without extension and subdirectory (if needed) or press Enter for {args.confname.split('.')[0]}.xlsx\n(e.g. Example)\n>>> ")
         match filename:
             case '':
                 args.filename = args.confname.split('.')[0]
@@ -258,18 +270,18 @@ def FrameworkHelper(args):
                         case _: raise KeyboardInterrupt('Program exit')
     return
 
-def path_setter(args):
+def path_setter(args, ext='csv'):
     if '/' in args.filename:
         subdir = 'output/' + args.filename.rstrip(string.ascii_letters).rstrip('/')
         if not(os.path.isdir(subdir)):
             os.makedirs(subdir)
-    if not os.path.isfile(f'output/{args.filename}.xlsx'):
-        path = f'output/{args.filename}.xlsx'
+    if not os.path.isfile(f'output/{args.filename}.{ext}'):
+        path = f'output/{args.filename}.{ext}'
     else:
         filenum = 1
-        while (os.path.isfile(f'output/{args.filename}_{filenum}.xlsx')==True):
+        while (os.path.isfile(f'output/{args.filename}_{filenum}.{ext}')==True):
             filenum+=1
-        else: path = f'output/{args.filename}_{filenum}.xlsx'
+        else: path = f'output/{args.filename}_{filenum}.{ext}'
     return path
     
 def Framework(confname='conf.txt', filename='Test', filtername=False):   
