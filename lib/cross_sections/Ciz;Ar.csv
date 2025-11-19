@@ -1,0 +1,61 @@
+﻿DATABASE:         Hayashi database,
+PERMLINK:         www.lxcat.net/Hayashi,
+"DESCRIPTION:      These data sets were derived by comparing calculated swarm parameters, using as input the cross",
+"                  sections sets in this database, with measurements.",
+CONTACT:          leanne.pitchford@@laplace.univ-tlse.fr,
+IONIZATION,
+Ar -> Ar^+,
+1.58E+01,
+SPECIES: e / Ar,
+"PROCESS: E + Ar -> E + E + Ar+, Ionization",
+"PARAM.:  E = 15.76 eV, complete set",
+UPDATED: 2014-02-15 15:34:02,
+COLUMNS: Energy (eV) | Cross section (m2),
+-----------------------------,
+1.58E+01,0.00E+00
+1.60E+01,2.02E-22
+1.70E+01,1.34E-21
+1.80E+01,2.94E-21
+1.90E+01,4.60E-21
+2.00E+01,6.27E-21
+2.10E+01,7.87E-21
+2.20E+01,9.33E-21
+2.30E+01,1.06E-20
+2.40E+01,1.18E-20
+2.50E+01,1.30E-20
+2.60E+01,1.41E-20
+2.80E+01,1.60E-20
+3.00E+01,1.80E-20
+3.20E+01,1.96E-20
+3.40E+01,2.11E-20
+3.60E+01,2.24E-20
+3.80E+01,2.33E-20
+4.00E+01,2.39E-20
+4.25E+01,2.45E-20
+4.50E+01,2.49E-20
+5.00E+01,2.53E-20
+5.50E+01,2.60E-20
+6.00E+01,2.66E-20
+6.50E+01,2.73E-20
+7.00E+01,2.77E-20
+7.50E+01,2.82E-20
+8.00E+01,2.84E-20
+8.50E+01,2.85E-20
+9.00E+01,2.86E-20
+1.00E+02,2.85E-20
+1.20E+02,2.81E-20
+1.30E+02,2.76E-20
+1.50E+02,2.68E-20
+1.60E+02,2.62E-20
+1.80E+02,2.52E-20
+2.00E+02,2.39E-20
+2.50E+02,2.17E-20
+3.00E+02,1.98E-20
+3.50E+02,1.81E-20
+4.00E+02,1.68E-20
+5.00E+02,1.46E-20
+6.00E+02,1.30E-20
+7.00E+02,1.16E-20
+8.00E+02,1.06E-20
+1.00E+03,9.16E-21
+1.00E+04,0.00E+00

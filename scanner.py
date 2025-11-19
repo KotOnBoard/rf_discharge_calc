@@ -1,4 +1,4 @@
-import calc
+import calc as calc
 import pandas as pd
 import time
 import pyjson5
@@ -119,6 +119,7 @@ def Iterator(args, par, pair=None):
             arr = []
             prev_i = i"""
     ret = pool.map(calc.main, tqdm(arr))
+    #ret = [calc.main(i) for i in tqdm(arr)]
     print("Calculation complete! Exporting... (this migh take a while)")
     #dump_out(ret, args, prev_i+2)  
     dump_back(ret, args)
@@ -126,7 +127,6 @@ def Iterator(args, par, pair=None):
 
 def dump_back(out, args):
     keys = out[0].keys()
-
     with open(args.path, 'w', newline='') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()

@@ -4,6 +4,8 @@ from scipy import optimize, integrate
 import numpy as np
 import json5
 import sys
+import csv
+from scipy.interpolate import Akima1DInterpolator#interp1d
 #start_time = time.time()
 
 
@@ -240,13 +242,14 @@ def ParLoader(prname=False, vrname=False, gcname=False):
                 par = json5.load(filepr)
         if (vrname==False):
             par['gas'] = "Ar"
-            par['p'] = 1 #pressure
-            par['l'] = 0.07 #electrode dist
-            par['R'] = 0.11767 #electrode diam
+            par['p'] = 2 #pressure
+            par['l'] = 0.1 #electrode dist
+            par['R'] = 0.314 #electrode diam
             par['f'] = 80
             #par['Vrf'] = 159.38543719750095
             par['Pwr'] = 75 #rf field params
             par['Assy'] = 2
+            par['S1'] = 0.04625
         elif (type(vrname)==dict):
             par.update(vrname)
         elif (type(vrname)==str): 
@@ -314,6 +317,20 @@ def TeCalc(par, gas_params, verbose=False):
         DESCRIPTION.
 
     """    
+    """
+    def CrossectionInit(par):
+        cont = [[],[]]
+        with open(f'lib/cross_sections/Ciz;{par["gas"]}.csv', newline='') as f:
+            reader = csv.reader(f)
+            for k,row in enumerate(reader):
+                if k<14: ...
+                else: 
+                    cont[0].append(float(row[0]))
+                    cont[1].append(float(row[1]))
+        cross = Akima1DInterpolator(cont[0], cont[1], extrapolate=True) #interp1d(cont[0], cont[1], fill_value=0)
+        return cross
+    """
+    
     def TeEquation(Te_val, verbose=False):
         """
         Inegral equation to be solved for obtaining Electron temperature (Te).
@@ -391,15 +408,20 @@ def TeCalc(par, gas_params, verbose=False):
         ???
         Kiz = 2.34e-14 * Te_val ** 0.59 * np.exp(-17.44 / Te_val) #D.S. model
         """
+        #Legacy
         
         Kiz_integ = lambda v: (
             (gas_params[par['gas']]['aiz']*((par['m']*v**2/(2*par['e']))/gas_params[par['gas']]['xi_iz']-1))/
             ((par['m']*(v**2)/(2*par['e']))/gas_params[par['gas']]['xi_iz']+gas_params[par['gas']]['biz'])**gas_params[par['gas']]['ciz']
             *v*np.exp(-(par['m']*(v**2)/(2*par['e']*Te_val)))*4*np.pi*v**2
-            )  
+            )
         Kiz = (1e-20 * np.power((par['m']/(2*np.pi*par['e']*Te_val)), (3/2))*
         integrate.quad(Kiz_integ, (np.sqrt(2*par['e']*gas_params[par['gas']]['xi_iz']/par['m'])), 10**7)[0])
         
+        """Kiz_integ = lambda v: (max(Csection(par['m']*np.power(v,2)/(2*par['e'])),0)*np.power(v,3)* #сечение должно быть от 
+                               np.power(par['m']/(2*np.pi*par['e']*Te_val),3/2)*
+                               np.exp(-par['m']*v**2/(2*par['e']*Te_val)))
+        Kiz = (4*np.pi*integrate.quad(Kiz_integ, 0, 10**7)[0])"""
         if verbose == True: 
             v = 10**7
             print(f"ub+ = {ub}")
@@ -507,7 +529,7 @@ def TeCalc(par, gas_params, verbose=False):
         plt.legend()
         plt.show()
     
-
+    #Csection = CrossectionInit(par)
     par['Te'], par['ub'] = Te_(verbose=verbose)
     par['Kiz'] = Kiz_(par['Te'], verbose=verbose)
     par['Kel'] = Kel_(par['Te'], verbose=verbose)
@@ -704,33 +726,6 @@ def VrfCalc(par, gas_params, verbose=False):
     return par
 
 def SabsCalc(par, gas_params, verbose=True):
-    '''
-    par["vm"] = par["Kel"]*par["ng"]
-    par["xi_c"] = (1/par["Kiz"]*(par["Kiz"]*gas_params[par['gas']]['xi_iz']+
-                                 par["Kex"]*gas_params[par['gas']]['xi_ex']+
-                                 par["Kel"]*3*par["m"]*par["Te"]/gas_params[par['gas']]['M']))
-    par['V1'] = par['Vrf']/2
-    par['Sohm'] = (1.73*par['m']*par['hl']/(2*par['e'])*par['e0']*par['omega']**2*par['vm']*
-                   np.sqrt(par['Te'])*np.sqrt(par['V1'])*par['d'])
-    par['Sstoc'] = 0.45*np.sqrt(par['m']/par['e'])*par['e0']*par['omega']**2*np.sqrt(par['Te'])*par['V1']
-    par['ns'] = ((par['Sohm']+2*par['Sstoc'])
-                 /(2*par['e']*par['ub']
-                   *(par['xi_c']+2*par['Te']+par['Te']
-                     *np.sqrt(np.log(gas_params[par['gas']]['M']/(2*np.pi*par['m'])))
-                     +0.5*par['Te'])))
-    par['n0'] = par['ns']/par['hl']
-    par['V'] = 0.83*par['V1']
-    par['Ji_symm'] = par['e']*par['ns']*par['ub']
-    par['sm'] = np.sqrt(0.82*par['e0']*np.power(par['V'], 3/2)/par['Ji_symm']
-                        *np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
-    par['J1'] = 1.23*par['omega']*par['e0']/par['sm']*par['V1']
-    par['Sabs'] = (2*par['e']*par['ns']*par['ub']
-                   *(par['V']+par['xi_c']+2*par['Te']+par['Te']
-                     *np.sqrt(np.log(gas_params[par['gas']]['M']/(2*np.pi*par['m'])))
-                     +0.5*par['Te'])*par['S1'])
-    par['Pwr'] = par['Sabs']
-    par['dPio'] = 2*par['e']*par['ns']*par['ub']*(gas_params[par['gas']]['xi_iz']+par['V'])/par['Sabs']
-    '''
     par["vm"] = par["Kel"]*par["ng"]
     par["xi_c"] = (1/par["Kiz"]*(par["Kiz"]*gas_params[par['gas']]['xi_iz']+
                                  par["Kex"]*gas_params[par['gas']]['xi_ex']+
@@ -804,13 +799,13 @@ def dECalc(par, gas_params):
     Automatically collects all obtained parameters in par[] dict.
 
     """
-    par['dEi1'] = (4*np.power(par['e']*np.abs(par['V1_avg']), 1.5)*np.sign(par['V1_avg']) #194.37009
+    par['dEi1'] = np.abs(4*np.power(par['e']*np.abs(par['V1_avg']), 1.5)*np.sign(par['V1_avg']) #194.37009
                        /(par['omega']*par['sm1']*np.sqrt(2*gas_params[par['gas']]['M'])))
     par['dEi1 [eV]'] = par['dEi1']/par['e']
-    par['dEi2'] = (4*np.power(par['e']*np.abs(par['V2_avg']), 1.5)*np.sign(par['V2_avg']) #18.75306
+    par['dEi2'] = np.abs(4*np.power(par['e']*np.abs(par['V2_avg']), 1.5)*np.sign(par['V2_avg']) #18.75306
                        /(par['omega']*par['sm2']*np.sqrt(2*gas_params[par['gas']]['M'])))
     par['dEi2 [eV]'] = par['dEi2']/par['e']
-    par['dEi_symm'] = (4*np.power(par['e']*np.abs(par['Vp_symm']), 1.5)*np.sign(par['Vp_symm']) #167.38546
+    par['dEi_symm'] = np.abs(4*np.power(par['e']*np.abs(par['Vp_symm']), 1.5)*np.sign(par['Vp_symm']) #167.38546
                            /(par['omega']*par['sm2']*np.sqrt(2*gas_params[par['gas']]['M'])))
     par['dEi_symm [eV]'] = par['dEi_symm']/par['e']
     par['Ns1'] = par['Ji1']/par['e']
@@ -819,48 +814,56 @@ def dECalc(par, gas_params):
     return par
 
 def FiENorm(par, gas_params, verbose=False):
-    
     j_ = ['1','2','_symm','1_avg','2_avg','p_symm']
-    el =  ['Mo', 'B', 'Si', 'MoO3']
+    el = ['Mo', 'B', 'Si']
     xi_hilo = 330
     for j in [0,1,2]:
-        FiE = lambda x: (2*par[f'Ns{j_[j]}']/(par['omega']*par[f'dEi{j_[j]}'])
-                            *np.power(1-4*np.power(x-par['e']*par[f'V{j_[j+3]}'], 2)
-                                             /np.power(par[f'dEi{j_[j]}'], 2), -0.5))
+        FiE = lambda x: (2*par[f'Ns{j_[j]}']/(par['omega']*par[f'dEi{j_[j]} [eV]'])
+                            *np.power(1-4*np.power(x-par[f'V{j_[j+3]}'], 2)
+                                             /np.power(par[f'dEi{j_[j]} [eV]'], 2), -0.5))
 
-        par[f'NN{j_[j]}'] = integrate.quad(FiE, par['e']*par[f'V{j_[j+3]}']-(par[f'dEi{j_[j]}']/2),
-                                           par['e']*par[f'V{j_[j+3]}']+(par[f'dEi{j_[j]}']/2))[0]
-                                                                                              
-        for i in [0,1,3]:
-            gam = lambda x: (gas_params[par['gas']][f'y0{i}']+2*gas_params[par['gas']][f'A{i}']/np.pi
+        par[f'NN{j_[j]}'] = integrate.quad(FiE, par[f'V{j_[j+3]}']-(par[f'dEi{j_[j]} [eV]']/2),
+                                           par[f'V{j_[j+3]}']+(par[f'dEi{j_[j]} [eV]']/2))[0]
+        
+        for ind,i in enumerate(el):
+            cont = [[],[]]
+            with open(f'lib/sputtering_yeild/{i};{par["gas"]}.csv', newline='') as f:
+                reader = csv.reader(f)
+                for k,row in enumerate(reader):
+                    if k<9: ...
+                    else: 
+                        cont[0].append(np.log10(float(row[0])))
+                        cont[1].append(np.log10(float(row[1])))
+            log_interp = Akima1DInterpolator(cont[0], cont[1], extrapolate=True) #interp1d(cont[0], cont[1], fill_value=0)
+            interp = lambda y: np.power(10.0, log_interp(np.log10(y)))                                                                          
+            """gam = lambda x: (gas_params[par['gas']][f'y0{i}']+2*gas_params[par['gas']][f'A{i}']/np.pi
                                 *(gas_params[par['gas']][f'w{i}']/
                                   (4*np.power(x/par['e']-gas_params[par['gas']][f'xc{i}'], 2)
-                                   +np.power(gas_params[par['gas']][f'w{i}'], 2))))
+                                   +np.power(gas_params[par['gas']][f'w{i}'], 2))))"""
             
-            if ((par[f'V{j_[j+3]}'] < xi_hilo) and (i < 3)): 
-                gam1_eff = lambda x: (gam(x)*FiE(x)/par[f'NN{j_[j]}']*np.heaviside(x-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))
-            else: 
-                gam1_eff = lambda x: (gas_params[par['gas']][f'gam_{el[i]}_hi'](x)*FiE(x)/par[f'NN{j_[j]}']*np.heaviside(x-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))
-            par[f'Г{j_[j]}_{el[i]}_eff'] = (integrate.quad(gam1_eff, par['e']*par[f'V{j_[j+3]}']-(par[f'dEi{j_[j]}']/2),
-                                                      par['e']*par[f'V{j_[j+3]}']+(par[f'dEi{j_[j]}']/2))[0])
+                    
+            gam1_eff = lambda x: (interp(x)*FiE(x)/par[f'NN{j_[j]}'])
+
+            if par[f'V{j_[j+3]}']>0 and par[f'V{j_[j+3]}']-(par[f'dEi{j_[j]} [eV]']/2)>0: 
+                par[f'G{j_[j]}_{i}_eff'] = (integrate.quad(gam1_eff, par[f'V{j_[j+3]}']-(par[f'dEi{j_[j]} [eV]']/2),
+                                                           par[f'V{j_[j+3]}']+(par[f'dEi{j_[j]} [eV]']/2))[0])
+            else: par[f'G{j_[j]}_{i}_eff'] = 0
+            """Проверка адекватности показаний. Всё более 1e6 и менее 10^-6 приравнивается к нулю,  т.к. не явялется адекватным"""
+            if par[f'G{j_[j]}_{i}_eff']>1e6 or par[f'G{j_[j]}_{i}_eff']<1e-6: par[f'G{j_[j]}_{i}_eff'] = 0
             if (verbose==True):
-                print(f"mode {j_[j]}_{el[i]}  = {(par[f'V{j_[j+3]}'] > xi_hilo)}") 
-                try: 
-                    print(f"gamma low {j_[j]}_{el[i]} = {gam(par['e']*par[f'V{j_[j+3]}'])}")
-                except: ...
-                print(f"heaviside_{j_[j]}_{el[i]} = {(par['e']*par[f'V{j_[j+3]}']+(par[f'dEi{j_[j]}']/2))-gas_params[par['gas']][f'xi_{i}']*par['e']}")
-                print(f"gamma high {j_[j]}_{el[i]} = {(gas_params[par['gas']][f'gam_{el[i]}_hi'](par['e']*par[f'V{j_[j+3]}'])*FiE(par['e']*par[f'V{j_[j+3]}'])/par[f'NN{j_[j]}']*np.heaviside(par['e']*par[f'V{j_[j+3]}']-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))}")
-                print(f"gamma{j_[j]}_{el[i]}_eff_Integ = {gam1_eff(par['e']*par[f'V{j_[j+3]}'])}")
+                print(f"mode {j_[j]}_{i}  = {(par[f'V{j_[j+3]}'] > xi_hilo)}") 
+                print(f"heaviside_{j_[j]}_{i} = {(par['e']*par[f'V{j_[j+3]}']+(par[f'dEi{j_[j]}']/2))-gas_params[par['gas']][f'xi_{i}']*par['e']}")
+                print(f"gamma high {j_[j]}_{i} = {(gas_params[par['gas']][f'gam_{i}_hi'](par['e']*par[f'V{j_[j+3]}'])*FiE(par['e']*par[f'V{j_[j+3]}'])/par[f'NN{j_[j]}']*np.heaviside(par['e']*par[f'V{j_[j+3]}']-gas_params[par['gas']][f'xi_{i}']*par['e'], 0))}")
+                print(f"gamma{j_[j]}_{i}_eff_Integ = {gam1_eff(par['e']*par[f'V{j_[j+3]}'])}")
                 print(f"V{j_[j+3]} = {par[f'V{j_[j+3]}']}")
                 print(f"FiE{j_[j]} = {FiE(par['e']*par[f'V{j_[j+3]}'])}")
                 print(f"{'='*30}")
     for j in [0,1,2]:        
-        par[f'd{j_[j]}_MoB'] = par[f'Г{j_[j]}_Mo_eff']/(par[f'Г{j_[j]}_B_eff']+par[f'Г{j_[j]}_Mo_eff']+1e-10)
-        par[f'd{j_[j]}_MoO3'] = par[f'Г{j_[j]}_Mo_eff']/(par[f'Г{j_[j]}_MoO3_eff']+par[f'Г{j_[j]}_Mo_eff']+1e-10)
+        par[f'd{j_[j]}_MoB'] = par[f'G{j_[j]}_Mo_eff']/(par[f'G{j_[j]}_B_eff']+par[f'G{j_[j]}_Mo_eff']+1e-10)
         
-        for i in [0,1,3]:
-            par[f'd{j_[j]}M_{el[i]}'] = par[f'Ji{j_[j]}']/(par['e']*par['N_A']*1e3)*par[f'M_{el[i]}']*par[f'Г{j_[j]}_{el[i]}_eff']
-            par[f'd{j_[j]}H_{el[i]}'] = par[f'd{j_[j]}M_{el[i]}']/par[f'ro_{el[i]}']*6e10
+        for i in el:
+            par[f'd{j_[j]}M_{i}'] = par[f'Ji{j_[j]}']/(par['e']*par['N_A']*1e3)*par[f'M_{i}']*par[f'G{j_[j]}_{i}_eff']
+            par[f'd{j_[j]}H_{i}'] = par[f'd{j_[j]}M_{i}']/par[f'ro_{i}']*6e10
     
     return par
     
@@ -933,6 +936,6 @@ def main(vrname=False, prname=False, gcname=False, verbose=False):
             par['f']=par['f']/1e6
             return par
 
-#par, err = calc(verbose=False)
+#par = main(verbose=False)
 #print('Execution time: %s seconds' % (time.time() - start_time))
 #sys.exit(0)
