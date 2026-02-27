@@ -117,12 +117,19 @@ def Plot(args, d, ar):
                         for j in range(1,len(ar[i])-1):
                             ax.append(ax[0].twinx())
                             ax[j].axis['right'] = ax[j].new_fixed_axis(loc="right", offset=(60*(j-1), 0))
+                            #ax[j].ticklabel_format(usetex=True)
                         for j in range(1,len(ar[i])):
                             ax[j-1].axhline(y=0, xmin=0, xmax=1, color='black')
                             p,=ax[j-1].plot(d[ar[i][0]], d[ar[i][j]], label=ar[i][j], marker='.')
                             ax[j-1].set_ylabel(ar[i][j])
+                            #scale = np.log(d[ar[i][0]][0])
+                            #ax[j-1].set_major_formatter(f'{d[ar[i][0]][0]}')
                             if j==1: ax[j-1].axis['left'].label.set_color(p.get_color())
-                            else: ax[j-1].axis['right'].label.set_color(p.get_color())
+                            else: 
+                                ax[j-1].axis['right'].label.set_color(p.get_color())
+                                ax[j-1].spines['right'].set_color(p.get_color())
+                                
+                                
                     case 'x'|'y': 
                         ax = fig.add_subplot(grd.SubplotSpec(grd.GridSpec(nrows,ncols), i), sharey=ax)
                         for j in range(1,len(ar[i])):

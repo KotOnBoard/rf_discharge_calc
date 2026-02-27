@@ -1,4 +1,4 @@
-import calc as calc
+import calc_back as calc
 import pandas as pd
 import time
 import pyjson5
@@ -31,7 +31,6 @@ def ArgParcer():
     #parse.add_argument('--plotfilename', '--plotfilename', action='store_const')
     #parse.add_argument('--filtername', '--filtername', action='store_const')
     parse.add_argument('-tutor', '-tutor', action='store_false', default=True)
-    parse.add_argument('--override', '--override', default=None)
     #parse.add_argument('args', nargs=argparse.REMAINDER)
     arg = parse.parse_args()
     #arg.confname = 'PLA-55.json5'
@@ -39,7 +38,7 @@ def ArgParcer():
     
     return arg
 
-def ParameterParser(par,args): #Не очищать словарь от постоянных значений
+def ParameterParser(par): #Не очищать словарь от постоянных значений
     flush = list(par.keys())
     for i in flush:
         match par[f'{i}']:
@@ -47,8 +46,6 @@ def ParameterParser(par,args): #Не очищать словарь от пост
                 if ',' in par[f'{i}']:
                     unfold = par[f'{i}'].lstrip(string.ascii_lowercase).lstrip('([{<').rstrip('>)]}').split(',')
                     par[f'{i}']=np.arange(float(unfold[0]),float(unfold[1]),float(unfold[2]))
-    if args.override:
-        par.update(pyjson5.loads(args.override))
     pairs = PairFinder(par)
     return par, pairs
 
@@ -190,7 +187,7 @@ def FrameworkHelper(args):
             case _:
                 args.filename = filename
     args.path = path_setter(args)    
-    par, pairs = ParameterParser(par,args)
+    par, pairs = ParameterParser(par)
     match kwargs:
         case list():
             if 'pair' in kwargs:
@@ -293,7 +290,7 @@ def Framework(confname='conf.txt', filename='Test', filtername=False):
         FrameworkHelper(args)
     else:
         par, kwargs = Loader(args.confname)
-        par, pairs = ParameterParser(par,args)
+        par, pairs = ParameterParser(par)
         args.path = path_setter(args)  
             
         ForkLoader(args, kwargs, pairs, par)
