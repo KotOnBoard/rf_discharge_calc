@@ -129,7 +129,10 @@ def Iterator(args, par, pair=None):
     pass
 
 def dump_back(out, args):
-    keys = out[0].keys()
+    j=[0]
+    for i in out:
+        if len(i)>len(j): j=i
+    keys = j.keys()
     with open(args.path, 'w', newline='') as output_file:
         dict_writer = csv.DictWriter(output_file, keys)
         dict_writer.writeheader()
