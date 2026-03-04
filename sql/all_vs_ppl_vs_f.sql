@@ -16,7 +16,7 @@ SELECT
 FROM test_table 
 WHERE Pwr IS NOT NULL 
     AND assy = 8 
-    AND S1 = 0.04625 
+    AND S1 = 0.01
     AND p = 3
     AND gas IN ('Ar', 'Ne', 'He')
 GROUP BY ppl, f
