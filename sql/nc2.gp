@@ -42,7 +42,7 @@ set format y '10^{%T}'
 set title ""
 set ylabel "N_C [1]" offset -1,0
 d2m = ar_min
-plot './csv/nc_out.csv' using 1:7 with lines lc rgb "magenta" lw 2 dt 1 title "He", \
+plot './csv/nc.csv' using 1:7 with lines lc rgb "magenta" lw 2 dt 1 title "He", \
      '' using 1:6 with lines lc rgb "magenta" lw 2 dt 1 title "", \
      '' using 1:7:6 with filledcurves fc rgb "magenta" title "", \
      '' using 1:5 with lines lc rgb "red" lw 2 dt 1 title "Ne", \

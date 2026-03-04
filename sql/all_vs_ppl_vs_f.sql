@@ -10,13 +10,19 @@ SELECT
     MAX(CASE WHEN gas = 'Ar' THEN d1H_B END) as d1h_b_ar,
     MAX(CASE WHEN gas = 'Ne' THEN d1H_B END) as d1h_b_ne,
     MAX(CASE WHEN gas = 'He' THEN d1H_B END) as d1h_b_he,
+	MAX(CASE WHEN gas = 'Ar' THEN d1H_MoO3 END) as d1h_MoO3_ar,
+    MAX(CASE WHEN gas = 'Ne' THEN d1H_MoO3 END) as d1h_MoO3_ne,
+    MAX(CASE WHEN gas = 'He' THEN d1H_MoO3 END) as d1h_MoO3_he,
 	IFNULL(MAX(CASE WHEN gas = 'Ar' THEN (d1H_B-d1H_Mo)/(d1H_B+d1H_Mo) END), -2.0) as s_ar,
 	IFNULL(MAX(CASE WHEN gas = 'Ne' THEN (d1H_B-d1H_Mo)/(d1H_B+d1H_Mo) END), -2.0) as s_ne,
-	IFNULL(MAX(CASE WHEN gas = 'He' THEN (d1H_B-d1H_Mo)/(d1H_B+d1H_Mo) END), -2.0) as s_he
+	IFNULL(MAX(CASE WHEN gas = 'He' THEN (d1H_B-d1H_Mo)/(d1H_B+d1H_Mo) END), -2.0) as s_he,
+	IFNULL(MAX(CASE WHEN gas = 'Ar' THEN (d1H_MoO3-d1H_Mo)/(d1H_MoO3+d1H_Mo) END), -2.0) as s2_ar,
+	IFNULL(MAX(CASE WHEN gas = 'Ne' THEN (d1H_MoO3-d1H_Mo)/(d1H_MoO3+d1H_Mo) END), -2.0) as s2_ne,
+	IFNULL(MAX(CASE WHEN gas = 'He' THEN (d1H_MoO3-d1H_Mo)/(d1H_MoO3+d1H_Mo) END), -2.0) as s2_he
 FROM test_table 
 WHERE Pwr IS NOT NULL 
     AND assy = 8 
-    AND S1 = 0.04625 
+    AND S1 = 0.01
     AND p = 3
     AND gas IN ('Ar', 'Ne', 'He')
 GROUP BY ppl, f
