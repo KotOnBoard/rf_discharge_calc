@@ -860,14 +860,13 @@ def FiENorm(par, gas_params, verbose=False):
                         cont[0].append(np.log10(float(row[0])))
                         cont[1].append(np.log10(float(row[1])))
                 f.close()
-            """⚠Main problem №1⚠"""
             log_interp = Akima1DInterpolator(cont[0], cont[1], extrapolate=True) #interp1d(cont[0], cont[1], fill_value=0)
             interp = lambda y: np.power(10.0, log_interp(np.log10(y)))                                                                          
             """gam = lambda x: (gas_params[par['gas']][f'y0{i}']+2*gas_params[par['gas']][f'A{i}']/np.pi
                                 *(gas_params[par['gas']][f'w{i}']/
                                   (4*np.power(x/par['e']-gas_params[par['gas']][f'xc{i}'], 2)
                                    +np.power(gas_params[par['gas']][f'w{i}'], 2))))"""
-            """⚠Main problem №2⚠"""       
+                   
             gam1_eff = lambda x: (interp(x)*FiE(x)/par[f'NN{j_[j]}'])
             if par[f'V{j_[j+2]}']>0 and par[f'V{j_[j+2]}']-(par[f'dEi{j_[j]} [eV]']/2)>0: 
                 par[f'G{j_[j]}_{i}_eff'] = (integrate.quad(gam1_eff, par[f'V{j_[j+2]}']-(par[f'dEi{j_[j]} [eV]']/2),
