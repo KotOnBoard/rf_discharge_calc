@@ -11,7 +11,7 @@ set key maxcols 2
 set key maxrows 3
 set termoption font "Times,18"
 
-set multiplot title "p=3 [Pa] Ppl=100 [W] S1=0.01 [m^2] l=0.1 [m]" \
+set multiplot title "p=3 [Pa] Ppl=100 [W] S1=0.04625 [m^2] l=0.1 [m]" \
 	layout 2,2 spacing screen 1, 0.05 # Multiplot: 2 rows, 2 columns \
 #set multiplot layout 2,2 spacing screen 1, 0.05 # Multiplot: 2 rows, 2 columns
 

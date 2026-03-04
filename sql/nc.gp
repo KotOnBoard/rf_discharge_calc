@@ -42,23 +42,23 @@ unset key
 set title "Argon (Ar) Ratio"
 set ylabel "N_C [1]"
 d2m = ar_min
-plot './csv/nc.csv' using "cond_name":3 with lines lc rgb "red" lw 2 dt 1 title "Max Ar", \
-     '' using "cond_name":"b2mo_ar" with lines lc rgb "red" lw 2 dt 1 title "Min Ar", \
-     '' using "cond_name":3:2 with filledcurves fc rgb "red" title "Ar Range"
+plot './csv/nc_out.csv' using 1:3 with lines lc rgb "red" lw 2 dt 1 title "Max Ar", \
+     '' using 1:2 with lines lc rgb "red" lw 2 dt 1 title "Min Ar", \
+     '' using 1:3:2 with filledcurves fc rgb "red" title "Ar Range"
 
 # Plot 1: Neon (Ne)
 set title "Neon (Ne) Ratio"
 unset ylabel
 d2m = ar_min
-plot './csv/nc.csv' using "cond_name":5 with lines lc rgb "red" lw 2 dt 1 title "Max Ne", \
-     '' using "cond_name":"b2mo_ne" with lines lc rgb "red" lw 2 dt 1 title "Min Ne", \
-     '' using "cond_name":5:4 with filledcurves fc rgb "red" title "Ne Range"
+plot './csv/nc_out.csv' using 1:5 with lines lc rgb "red" lw 2 dt 1 title "Max Ne", \
+     '' using 1:4 with lines lc rgb "red" lw 2 dt 1 title "Min Ne", \
+     '' using 1:5:4 with filledcurves fc rgb "red" title "Ne Range"
 
 # Plot 1: Helium (He)
 set title "Helium (He) Ratio"
 d2m = ar_min
-plot './csv/nc.csv' using "cond_name":7 with lines lc rgb "red" lw 2 dt 1 title "Max He", \
-     '' using "cond_name":"b2mo_he" with lines lc rgb "red" lw 2 dt 1 title "Min He", \
-     '' using "cond_name":7:6 with filledcurves fc rgb "red" title "He Range"
+plot './csv/nc_out.csv' using 1:7 with lines lc rgb "red" lw 2 dt 1 title "Max He", \
+     '' using 1:6 with lines lc rgb "red" lw 2 dt 1 title "Min He", \
+     '' using 1:7:6 with filledcurves fc rgb "red" title "He Range"
 
 unset multiplot

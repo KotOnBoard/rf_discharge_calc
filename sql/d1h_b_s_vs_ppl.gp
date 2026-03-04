@@ -7,7 +7,7 @@ set datafile separator ","
 set grid
 set key maxcols 2
 set key maxrows 3
-set title "p=3 [Pa] f=80 [MHz] S1=0.01 [m^2] l=0.1 [m] assy=8"
+set title "p=3 [Pa] f=60 [MHz] S1=0.04625 [m^2] l=0.1 [m] assy=8"
 #set border 1 lc rgb "blue"
 #set border 4 lc rgb "red"
 

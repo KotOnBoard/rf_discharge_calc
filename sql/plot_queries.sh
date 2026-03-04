@@ -32,10 +32,10 @@ query2csv() {
     fi
 }
 
-query2csv "../sql/LowDef.db" "all_vs_ppl.sql" "all_vs_ppl.csv"
-query2csv "../sql/LowDef.db" "all_vs_f.sql" "all_vs_f.csv"
-query2csv "../sql/LowDef.db" "all_vs_ppl_vs_f.sql" "all_vs_ppl_vs_f.csv"
-query2csv "../sql/LowDef.db" "vb_vmo.sql" "nc.csv"
+query2csv "../output/test.db" "all_vs_ppl.sql" "all_vs_ppl.csv"
+query2csv "../output/test.db" "all_vs_f.sql" "all_vs_f.csv"
+query2csv "../output/test.db" "all_vs_ppl_vs_f.sql" "all_vs_ppl_vs_f.csv"
+query2csv "../output/test.db" "vb_vmo.sql" "nc.csv"
 
 gnuplot "ub_urf_vs_ppl.gp"
 gnuplot "ub_urf_vs_f.gp"
