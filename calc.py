@@ -244,7 +244,7 @@ def ParLoader(prname=False, vrname=False, gcname=False):
                 par = json5.load(filepr)
         if (vrname==False):
             par['gas'] = 'He'
-            par['l'] = 0.02
+            par['l'] = 0.3
             par['f'] = 80
             par['Pwr'] = 50
             par['Assy'] = 8
@@ -359,6 +359,7 @@ def TeCalc(par, gas_params, verbose=False):
             Value of equation that must be (near) zero with correct Te.
 
         """
+        Te_val=abs(Te_val)
         ub = np.sqrt(par['e']*Te_val/gas_params[par['gas']]['M'])
         if verbose == True: print(f'ub = {ub}')
         Kiz = Kiz_(Te_val, verbose=verbose)
@@ -389,7 +390,7 @@ def TeCalc(par, gas_params, verbose=False):
         fun = lambda x: TeEquation(x, verbose=verbose)
         Te_val = optimize.root_scalar(fun, x0=3, x1=50, xtol=1e-3, method='secant')
         #Te_val = optimize.root_scalar(fun, bracket=[1e-3, 30], x0=3, x1=5, xtol=1e-3, method='brentq')
-        Te = Te_val.root
+        Te = abs(Te_val.root)
         if verbose == True: 
             print(f'Te = {Te}')
             print(Te_val)
@@ -568,6 +569,7 @@ def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
 
     def VrfEq(Vrf, verbose=False):
         #print("==============================\n par['Vrf'] = ",Vrf)
+        Vrf=abs(Vrf)
         par["vm"] = par["Kel"]*par["ng"]
         par["xi_c"] = (1/par["Kiz"]*(par["Kiz"]*gas_params[par['gas']]['xi_iz']+
                               par["Kex"]*gas_params[par['gas']]['xi_ex']+
@@ -675,7 +677,7 @@ def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
         VrfSolve = optimize.root_scalar(fun, x0=50, x1=5000, xtol=1e-3, method='secant')
         #VrfSolve = optimize.root_scalar(fun, bracket=(20,200), x0=50, x1=5000, xtol=1e-3, method='brentq')
         if (verbose==True): print(f'VrfSolve = {VrfSolve}')
-        return VrfSolve.root
+        return abs(VrfSolve.root)
     #for i in range(100,200,1):
         #print(VrfEq(i))
     if mode=='Pwr':
