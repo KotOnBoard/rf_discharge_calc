@@ -844,7 +844,7 @@ def main(vrname=False, prname=False, gcname=False, verbose=False):
             par['f']=par['f']/1e6
             return par
         
-par = main(verbose=False)
+#par = main(verbose=False)
 #print(par, len(par))
 #print('Execution time: %s seconds' % (time.time() - start_time))
 #sys.exit(0)
