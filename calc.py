@@ -245,8 +245,8 @@ def ParLoader(prname=False, vrname=False, gcname=False):
         if (vrname==False):
             par['gas'] = 'He'
             par['l'] = 0.1
-            par['f'] = 80
-            par['Pwr'] = 5
+            par['f'] = 40
+            par['Pwr'] = 200
             par['Assy'] = 8
             par['p'] = 3
             par['S1'] = 0.01
@@ -279,16 +279,16 @@ def ParLoader(prname=False, vrname=False, gcname=False):
         if 'ng' not in par:
             par['ng'] = (2*par['p'])/(3*par['k']*par['Ti']) #Концентрация атомов газа
         if 'lam_i' not in par:
-            par['lam_i'] = 1/(par['ng']*gas_params[par['gas']]['sig_i']) 
+            par['lam_i'] = 1/(par['ng']*gas_params[par['gas']]['sig_i']) #mean free path
         if 'lam_i_d' not in par:
-            par['lam_i_d'] = par['lam_i']/par['d']
+            par['lam_i_d'] = par['lam_i']/par['d'] #критерий существования столкновений
         if 'hl' not in par:
-            par['hl'] = 0.86*(3+par['d']/(2*par['lam_i']))**(-1/2)
+            par['hl'] = 0.86*(3+par['d']/(2*par['lam_i']))**(-1/2) #axial sheath edge pg. 331 
         if 'hR' not in par:
-            par['hR'] = 0.8*(4+par['R']/par['lam_i'])**(-1/2)
+            par['hR'] = 0.8*(4+par['R']/par['lam_i'])**(-1/2) #radial sheath edge
         if 'deff' not in par:
             par['deff'] = par['l']/(2*par['hl']) #1/2*par['R']*par['l']/(par['R']*par['hl']+par['l']*par['hR'])
-                    
+            #эффективная площадь плазмы 
         return par
     
     gas_params = LoadGasPar(gcname=gcname)
@@ -365,7 +365,7 @@ def TeCalc(par, gas_params, verbose=False):
         if verbose == True: 
             print(f'Te_val = {Te_val}')
             print(f"error = {Kiz-ub*((par['ng']*par['deff'])**-1)}")
-        return Kiz-ub*((par['ng']*par['deff'])**-1) #???
+        return Kiz-ub*((par['ng']*par['deff'])**-1) #pg 408 10.2.10
         #return par['d']*par['S1'] * par["ng"] * Kiz - (par['S1']+par['S2']) * ub #D.S. model
 
     def Te_(verbose=False):
@@ -554,7 +554,7 @@ def TeCalc(par, gas_params, verbose=False):
 Блок 2: Согласование мощности плазмы с целевой.
 """
 
-def VrfCalc(par, gas_params, verbose=False):
+def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
     """
     Function for calculating absorbed power and matching it by varying RF voltage. 
 
@@ -564,38 +564,26 @@ def VrfCalc(par, gas_params, verbose=False):
         RF voltage with matching RF power & Power absobed by plasma.
 
     """
-    if (verbose==True): 
-        check = {}
-        check['d'] = []
-        check['hl'] = []
-        check['Vrf'] = []
-        check['V1'] = []
-        check['Sohm'] = []
-        check['Sstoc'] = []
-        check['ns'] = []
-        check['n0'] = []
-        check['V'] = []
-        check['Ji'] = []
-        check['sm'] = []
-        check['J1'] = []
-        check['Sabs'] = []
-        
-      
-    
+
     def VrfEq(Vrf, verbose=False):
         #print("==============================\n par['Vrf'] = ",Vrf)
         par["vm"] = par["Kel"]*par["ng"]
         par["xi_c"] = (1/par["Kiz"]*(par["Kiz"]*gas_params[par['gas']]['xi_iz']+
                               par["Kex"]*gas_params[par['gas']]['xi_ex']+
                               par["Kel"]*3*par["m"]*par["Te"]/gas_params[par['gas']]['M']))  
-        par['Vf'] = -(par['Te']/2)*np.log(gas_params[par['gas']]['M']/(par['m']*2*np.pi/(np.pow(1.247,2))))
-        par['sm2'] = (par['S1']+par['S2'])/(2*par['S2'])*np.pow(par['S2']/par['S1'],1/2-0.25)*par['sm']
+        par['Vf'] = -(par['Te']/2)*np.log(gas_params[par['gas']]['M']/(par['m']*2*np.pi
+                                                                       /(np.pow(1.247,2))))
+        par['sm2'] = ((par['S1']+par['S2'])/(2*par['S2'])
+                      *np.pow(par['S2']/par['S1'],1/2-0.25)*par['sm'])
         par['sm1'] = np.pow(par['S2']/par['S1'],1.5-1)*par['sm2']
+        par['d'] = par['l']-par['sm1']-par['sm2']
+        par['hl'] = 0.86*np.power(3+par['d']/(2*par['lam_i']),(-1/2))
         par['C1'] = par['e0']*par['S1']/par['sm1']
         par['C2'] = par['e0']*par['S2']/par['sm2']
         par['Vp_amp'] = par['C1']/(par['C1']+par['C2'])*Vrf
         #print("par['Vp_amp'] = ",par['Vp_amp'])
-        par['Vp_avg'] = par['Vp_amp']+np.abs(par['Vf'])-par['Te']/2*np.log(2*np.pi*par['Vp_amp']/par['Te'])
+        par['Vp_avg'] = (par['Vp_amp']+np.abs(par['Vf'])-par['Te']/2
+                         *np.log(2*np.pi*par['Vp_amp']/par['Te']))
         par['Vp_symm'] = Vrf/2+np.abs(par['Vf'])-par['Te']/2*np.log(np.pi*Vrf/par['Te'])
         par['Ubias'] = 2*par['Vp_avg']-Vrf
         #print("par['2*Vp_avg'] = ",2*par['Vp_avg'])
@@ -603,9 +591,13 @@ def VrfCalc(par, gas_params, verbose=False):
         par['V1_avg'] = par['Vp_avg']-par['Ubias']
         #print("par['V1_avg'] = ",par['V1_avg'])
         par['V2_avg'] = par['Vp_avg']
-        par['Sohm'] = 1.73*par['m']*par['hl']/(2*par['e'])*par['e0']*np.pow(par['omega'],2)*par['vm']*np.sqrt(par['Te'])*np.sqrt(np.abs(par['V1_avg']))*par['d']
+        par['Sohm'] = (1.73*par['m']*par['hl']/(2*par['e'])*par['e0']
+                       *np.pow(par['omega'],2)*par['vm']*np.sqrt(par['Te'])
+                       *np.sqrt(np.abs(par['V1_avg']))*par['d'])
         for i in 1,2: #Sstoc[1,2] = f(V[1,2]_avg)
-            par[f'Sstoc{i}'] = 0.45*np.sqrt(par['m']/par['e'])*par['e0']*np.pow(par['omega'],2)*np.sqrt(par['Te'])*np.abs(par[f'V{i}_avg'])
+            par[f'Sstoc{i}'] = (0.45*np.sqrt(par['m']/par['e'])*par['e0']
+                                *np.pow(par['omega'],2)*np.sqrt(par['Te'])
+                                *np.abs(par[f'V{i}_avg']))
         par['ns1'] = ((par['Sohm']+par['Sstoc1']+par['Sstoc2'])
                       /(2*par['e']*par['ub']
                                *(par['xi_c']+2*par['Te']+par['Te']
@@ -616,12 +608,13 @@ def VrfCalc(par, gas_params, verbose=False):
         par['Ji_symm'] = par['e']*par['ns1']*par['ub']
         par['Ji1'] = par['e']*par['ns1']*par['ub']
         #print("par['V'] = ",par['V'])
-        par['sm1'] = np.sqrt(0.82*par['e0']*np.pow(par['V'],3/2)/par['Ji1']*np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
+        par['sm1'] = np.sqrt(0.82*par['e0']*np.pow(par['V'],3/2)/par['Ji1']
+                             *np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
         par['J1'] = 1.23*par['omega']*par['e0']/par['sm1']*par['V1_avg']
         #Cycle
-        par['d'] = par['l']-2*par['sm']
-        par['hl'] = 0.86*np.power(3+par['d']/(2*par['lam_i']),(-1/2))
         par['sm2'] = np.pow(par['S2']/par['S1'],1-1.5)*par['sm1']
+        par['d'] = par['l']-par['sm1']-par['sm2']
+        par['hl'] = 0.86*np.power(3+par['d']/(2*par['lam_i']),(-1/2))
         #print("par['sm1'] = ",par['sm1'])
         #print("par['sm2'] = ",par['sm2'])
         par['ns2'] = np.sqrt(par['S1']/par['S2'])*par['ns1']
@@ -633,14 +626,19 @@ def VrfCalc(par, gas_params, verbose=False):
         #print("par['C2'] = ",par['C2'])
         par['Vp_amp'] = par['C1']/(par['C1']+par['C2'])*Vrf
         #print("par['Vp_amp'] = ",par['Vp_amp'])
-        par['Vp_avg'] = par['Vp_amp']+np.abs(par['Vf'])-par['Te']/2*np.log(2*np.pi*par['Vp_amp']/par['Te'])
+        par['Vp_avg'] = (par['Vp_amp']+np.abs(par['Vf'])-par['Te']/2
+                         *np.log(2*np.pi*par['Vp_amp']/par['Te']))
         par['Vp_symm'] = Vrf/2+np.abs(par['Vf'])-par['Te']/2*np.log(np.pi*Vrf/par['Te'])
         par['Ubias'] = 2*par['Vp_avg']-Vrf
         par['V1_avg'] = par['Vp_avg']-par['Ubias']
         par['V2_avg'] = par['Vp_avg']
-        par['Sohm'] = 1.73*par['m']*par['hl']/(2*par['e'])*par['e0']*np.pow(par['omega'],2)*par['vm']*np.sqrt(par['Te'])*np.sqrt(np.abs(par['V1_avg']))*par['d'] 
+        par['Sohm'] = (1.73*par['m']*par['hl']/(2*par['e'])*par['e0']
+                       *np.pow(par['omega'],2)*par['vm']*np.sqrt(par['Te'])
+                       *np.sqrt(np.abs(par['V1_avg']))*par['d']) 
         for i in 1,2: #Sstoc[1,2] = f(V[1,2]_avg)
-            par[f'Sstoc{i}'] = 0.45*np.sqrt(par['m']/par['e'])*par['e0']*np.pow(par['omega'],2)*np.sqrt(par['Te'])*np.abs(par[f'V{i}_avg'])
+            par[f'Sstoc{i}'] = (0.45*np.sqrt(par['m']/par['e'])*par['e0']
+                                *np.pow(par['omega'],2)*np.sqrt(par['Te'])
+                                *np.abs(par[f'V{i}_avg']))
         par['ns1'] = ((par['Sohm']+par['Sstoc1']+par['Sstoc2'])
                       /(2*par['e']*par['ub']
                                *(par['xi_c']+2*par['Te']+par['Te']
@@ -667,144 +665,21 @@ def VrfCalc(par, gas_params, verbose=False):
             print(f'Ji = {par["Ji1"]}')
         return par['Sabs'] - par['Pwr']
          
-    def __VrfEq1(Vrf, verbose=False):
-        par['d'] = par['l']-2*par['sm']
-        par['hl'] = 0.86*np.power(3+par['d']/(2*par['lam_i']),(-1/2))
-        par['V1'] = np.abs(Vrf)/2
-        par['Sohm'] = (1.73*par['m']*par['hl']/(2*par['e'])*par['e0']*par['omega']**2*par['vm']*
-                np.sqrt(par['Te'])*np.sqrt(par['V1'])*par['d'])
-        par['Sstoc'] = 0.45*np.sqrt(par['m']/par['e'])*par['e0']*par['omega']**2*np.sqrt(par['Te'])*par['V1']
-        par['ns'] = ((par['Sohm']+2*par['Sstoc'])
-        /(2*par['e']*par['ub']
-          *(par['xi_c']+2*par['Te']+par['Te']
-            *np.sqrt(np.log(gas_params[par['gas']]['M']/(2*np.pi*par['m'])))
-            +0.5*par['Te'])))
-        par['n0'] = par['ns']/par['hl']
-        
-        par['Ji_symm'] = par['e']*par['ns']*par['ub']
-        #print('Ji_symm =',par['Ji_symm'],' V^3/2 =',np.power(par['V'], 3/2))
-        par['sm'] = np.sqrt(0.82*par['e0']*np.power(par['V'], 3/2)/par['Ji_symm']
-                            *np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
-        #par['sm'] = 0.002
-        par['J1'] = 1.23*par['omega']*par['e0']/par['sm']*par['V1']
-        par['Sabs'] = (2*par['e']*par['ns']*par['ub']
-                *(par['V']+par['xi_c']+2*par['Te']+par['Te']
-                  *np.sqrt(np.log(gas_params[par['gas']]['M']/(2*np.pi*par['m'])))
-                  +0.5*par['Te'])*np.pi*par['R']**2)
-        par['dPio'] = 2*par['e']*par['ns']*par['ub']*(gas_params[par['gas']]['xi_iz']+par['V'])/par['Sabs']
-        #par['d'] = par['l']-2*par['sm']
-        
-        if (verbose==True) :
-            check['d'].append(par['d'])
-            check['hl'].append(par['hl'])
-            check['Vrf'].append(Vrf)
-            check['V1'].append(par['V1'])
-            check['Sohm'].append(par['Sohm'])
-            check['Sstoc'].append(par['Sstoc'])
-            check['ns'].append(par['ns'])
-            check['n0'].append(par['n0'])
-            check['V'].append(par['V'])
-            check['Ji'].append(par['Ji_symm'])
-            check['sm'].append(par['sm'])
-            check['J1'].append(par['J1'])
-            check['Sabs'].append(par['Sabs'])
-            print(f'Vrf = {Vrf}')
-            print(f'Sabs = {par["Sabs"]}')
-            print(f'ns = {par["ns"]}')
-            print(f'Ji = {par["Ji_symm"]}')
-        return par['Sabs'] - par['Pwr']
-
     def Vrf_(verbose=False):
 
         fun = lambda x : VrfEq(x, verbose=verbose)
         VrfSolve = optimize.root_scalar(fun, x0=50, x1=5000, xtol=1e-3, method='secant')
         #VrfSolve = optimize.root_scalar(fun, bracket=(10000,10), rtol=1e-3, method='brentq')
-        par['ns'] = np.sqrt(par['ns1']*par['ns2'])
-        par['Ji_symm'] = par['e']*par['ns']*par['ub']
         if (verbose==True): print(f'VrfSolve = {VrfSolve}')
         return VrfSolve.root
     
-    Vrf = Vrf_(verbose=verbose) 
-    par['Vrf'] = Vrf
+    if mode=='Pwr':
+        Vrf = Vrf_(verbose=verbose) 
+        par['Vrf'] = Vrf
+    elif mode=='Vrf':
+        VrfEq(par['Vrf'])
+        par['Pwr'] = par['Sabs']
 
-    return par
-
-def SabsCalc(par, gas_params, verbose=True):
-    #print("==============================\n par['Vrf'] = ",Vrf)
-    par["vm"] = par["Kel"]*par["ng"]
-    par["xi_c"] = (1/par["Kiz"]*(par["Kiz"]*gas_params[par['gas']]['xi_iz']+
-                          par["Kex"]*gas_params[par['gas']]['xi_ex']+
-                          par["Kel"]*3*par["m"]*par["Te"]/gas_params[par['gas']]['M']))  
-    par['Vf'] = -(par['Te']/2)*np.log(gas_params[par['gas']]['M']/(par['m']*2*np.pi/(np.pow(1.247,2))))
-    par['sm2'] = (par['S1']+par['S2'])/(2*par['S2'])*np.pow(par['S2']/par['S1'],1/2-0.25)*par['sm']
-    par['sm1'] = np.pow(par['S2']/par['S1'],1.5-1)*par['sm2']
-    par['C1'] = par['e0']*par['S1']/par['sm1']
-    par['C2'] = par['e0']*par['S2']/par['sm2']
-    par['Vp_amp'] = par['C1']/(par['C1']+par['C2'])*par['Vrf']
-    #print("par['Vp_amp'] = ",par['Vp_amp'])
-    par['Vp_avg'] = par['Vp_amp']+np.abs(par['Vf'])-par['Te']/2*np.log(2*np.pi*par['Vp_amp']/par['Te'])
-    par['Vp_symm'] = par['Vrf']/2+np.abs(par['Vf'])-par['Te']/2*np.log(np.pi*par['Vrf']/par['Te'])
-    par['Ubias'] = 2*par['Vp_avg']-par['Vrf']
-    #print("par['2*Vp_avg'] = ",2*par['Vp_avg'])
-    #print("par['Ubias'] = ",par['Ubias'])
-    par['V1_avg'] = par['Vp_avg']-par['Ubias']
-    #print("par['V1_avg'] = ",par['V1_avg'])
-    par['V2_avg'] = par['Vp_avg']
-    par['Sohm'] = 1.73*par['m']*par['hl']/(2*par['e'])*par['e0']*np.pow(par['omega'],2)*par['vm']*np.sqrt(par['Te'])*np.sqrt(np.abs(par['V1_avg']))*par['d']
-    for i in 1,2: #Sstoc[1,2] = f(V[1,2]_avg)
-        par[f'Sstoc{i}'] = 0.45*np.sqrt(par['m']/par['e'])*par['e0']*np.pow(par['omega'],2)*np.sqrt(par['Te'])*np.abs(par[f'V{i}_avg'])
-    par['ns1'] = ((par['Sohm']+par['Sstoc1']+par['Sstoc2'])
-                  /(2*par['e']*par['ub']
-                           *(par['xi_c']+2*par['Te']+par['Te']
-                                  *np.sqrt(np.log(gas_params[par['gas']]['M']
-                                                  /(2*np.pi*par['m'])))+par['Te']/2)))  
-    par['n0'] = par['ns1']/par['hl']
-    par['V'] = 0.83*par['V1_avg']
-    par['Ji1'] = par['e']*par['ns1']*par['ub']
-    #print("par['V'] = ",par['V'])
-    par['sm1'] = np.sqrt(0.82*par['e0']*np.pow(par['V'],3/2)/par['Ji1']*np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
-    par['J1'] = 1.23*par['omega']*par['e0']/par['sm1']*par['V1_avg']
-    #Cycle
-    par['d'] = par['l']-2*par['sm']
-    par['hl'] = 0.86*np.power(3+par['d']/(2*par['lam_i']),(-1/2))
-    par['sm2'] = np.pow(par['S2']/par['S1'],1-1.5)*par['sm1']
-    #print("par['sm1'] = ",par['sm1'])
-    #print("par['sm2'] = ",par['sm2'])
-    par['ns2'] = np.sqrt(par['S1']/par['S2'])*par['ns1']
-    par['Ji1'] = par['e']*par['ns1']*par['ub']
-    par['Ji2'] = par['e']*par['ns2']*par['ub']
-    par['C1'] = par['e0']*par['S1']/par['sm1']
-    #print("par['C1'] = ",par['C1'])
-    par['C2'] = par['e0']*par['S2']/par['sm2']
-    #print("par['C2'] = ",par['C2'])
-    par['Vp_amp'] = par['C1']/(par['C1']+par['C2'])*par['Vrf']
-    #print("par['Vp_amp'] = ",par['Vp_amp'])
-    par['Vp_avg'] = par['Vp_amp']+np.abs(par['Vf'])-par['Te']/2*np.log(2*np.pi*par['Vp_amp']/par['Te'])
-    par['Vp_symm'] = par['Vrf']/2+np.abs(par['Vf'])-par['Te']/2*np.log(np.pi*par['Vrf']/par['Te'])
-    par['Ubias'] = 2*par['Vp_avg']-par['Vrf']
-    par['V1_avg'] = par['Vp_avg']-par['Ubias']
-    par['V2_avg'] = par['Vp_avg']
-    par['Sohm'] = 1.73*par['m']*par['hl']/(2*par['e'])*par['e0']*np.pow(par['omega'],2)*par['vm']*np.sqrt(par['Te'])*np.sqrt(np.abs(par['V1_avg']))*par['d'] 
-    for i in 1,2: #Sstoc[1,2] = f(V[1,2]_avg)
-        par[f'Sstoc{i}'] = 0.45*np.sqrt(par['m']/par['e'])*par['e0']*np.pow(par['omega'],2)*np.sqrt(par['Te'])*np.abs(par[f'V{i}_avg'])
-    par['ns1'] = ((par['Sohm']+par['Sstoc1']+par['Sstoc2'])
-                  /(2*par['e']*par['ub']
-                           *(par['xi_c']+2*par['Te']+par['Te']
-                                  *np.sqrt(np.log(gas_params[par['gas']]['M']
-                                                  /(2*np.pi*par['m'])))+par['Te']/2)))  
-    par['n0'] = par['ns1']/par['hl']
-    par['V'] = 0.83*par['V1_avg']
-    par['Ji1'] = par['e']*par['ns1']*par['ub']
-    par['sm1'] = np.sqrt(0.82*par['e0']*np.pow(par['V'],3/2)/par['Ji1']*np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
-    par['J1'] = 1.23*par['omega']*par['e0']/par['sm1']*par['V1_avg']
-    par['Sabs'] = (par['e']*par['ns1']*par['ub']
-                   *(par['V1_avg']+par['xi_c']+2*par['Te']+par['Te']
-                     *np.sqrt(np.log(gas_params[par['gas']]['M']/(2*np.pi*par['m'])))
-                     +0.5*par['Te'])*par['S1']
-                + (par['e']*par['ns2']*par['ub']
-                   *(par['V2_avg']+par['xi_c']+2*par['Te']+par['Te']
-                     *np.sqrt(np.log(gas_params[par['gas']]['M']/(2*np.pi*par['m'])))
-                     +0.5*par['Te'])*par['S2']))
     return par
 
 def dECalc(par, gas_params, verbose=False):
@@ -921,44 +796,30 @@ def main(vrname=False, prname=False, gcname=False, verbose=False):
                 if verbose == True: 
                     print(err)
                 sys.exit(1)
-            error_lock = True
-            recur_count = 0
-            while error_lock:
-                temp_d = par['d']
-                try: par.update(TeCalc(par, gas_params, verbose=verbose))
+            try: par.update(TeCalc(par, gas_params, verbose=verbose))
+            except: 
+                err = 2#"Electron temperature and/or rate coefficients can't be calculated"
+                if verbose == True: 
+                    print(err)
+                sys.exit(2)
+            if 'Pwr' in par:
+                try:
+                    par_ = VrfCalc(par, gas_params, mode='Pwr', verbose=verbose)
+                    par.update(par_)
                 except: 
-                    err = 2#"Electron temperature and/or rate coefficients can't be calculated"
+                    err = 31#"Can't calculate Vrf from given Pwr"
                     if verbose == True: 
                         print(err)
-                    sys.exit(2)
-                if 'Pwr' in par:
-                    try:
-                        par_ = VrfCalc(par, gas_params, verbose=verbose)
-                        par.update(par_)
-                    except: 
-                        err = 31#"Can't calculate Vrf from given Pwr"
-                        if verbose == True: 
-                            print(err)
-                        sys.exit(31)
-                elif 'Vrf' in par:
-                    try:
-                        par_ = SabsCalc(par, gas_params)
-                        par.update(par_)
-                    except:
-                        err = 32#"Can't calculate Sabs from given Vrf"
-                        if verbose == True: 
-                            print(err)
-                        sys.exit(32)
-                if not(par['d']>temp_d*1.1 or par['d']<temp_d*0.9):
-                    error_lock = False
+                    sys.exit(31)
+            elif 'Vrf' in par:
+                try:
+                    par_ = VrfCalc(par, gas_params, mode='Vrf', verbose=verbose)
+                    par.update(par_)
+                except:
+                    err = 32#"Can't calculate Sabs from given Vrf"
                     if verbose == True: 
-                        print(f'+++d error is achieved. d = {par["d"]}.+++')
-                elif recur_count>20:
-                    error_lock = False
-                else:
-                    if verbose == True: 
-                        print(f'---d error is {par["d"]-temp_d}. Recalculating Te & Vrf...---')
-                    recur_count+=1           
+                        print(err)
+                    sys.exit(32)           
             try:
                 par.update(dECalc(par, gas_params, verbose=verbose))
             except:
