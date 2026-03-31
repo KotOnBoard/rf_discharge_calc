@@ -244,12 +244,12 @@ def ParLoader(prname=False, vrname=False, gcname=False):
                 par = json5.load(filepr)
         if (vrname==False):
             par['gas'] = 'He'
-            par['l'] = 0.1
-            par['f'] = 40
-            par['Pwr'] = 200
+            par['l'] = 0.02
+            par['f'] = 80
+            par['Pwr'] = 50
             par['Assy'] = 8
-            par['p'] = 3
-            par['S1'] = 0.01
+            par['p'] = 2
+            par['S1'] = 0.019
             """
             par['gas'] = "Ne"
             par['p'] = 6 #pressure
@@ -387,7 +387,8 @@ def TeCalc(par, gas_params, verbose=False):
 
         """
         fun = lambda x: TeEquation(x, verbose=verbose)
-        Te_val = optimize.root_scalar(fun, bracket=[1e-3, 30], x0=3, x1=5, xtol=1e-3, method='brentq')
+        Te_val = optimize.root_scalar(fun, x0=3, x1=50, xtol=1e-3, method='secant')
+        #Te_val = optimize.root_scalar(fun, bracket=[1e-3, 30], x0=3, x1=5, xtol=1e-3, method='brentq')
         Te = Te_val.root
         if verbose == True: 
             print(f'Te = {Te}')
@@ -608,13 +609,15 @@ def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
         par['Ji_symm'] = par['e']*par['ns1']*par['ub']
         par['Ji1'] = par['e']*par['ns1']*par['ub']
         #print("par['V'] = ",par['V'])
-        par['sm1'] = np.sqrt(0.82*par['e0']*np.pow(par['V'],3/2)/par['Ji1']
+        if par['V']>0:
+            par['sm1'] = np.sqrt(0.82*par['e0']*np.pow(par['V'],3/2)/par['Ji1']
                              *np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
         par['J1'] = 1.23*par['omega']*par['e0']/par['sm1']*par['V1_avg']
         #Cycle
         par['sm2'] = np.pow(par['S2']/par['S1'],1-1.5)*par['sm1']
         par['d'] = par['l']-par['sm1']-par['sm2']
-        par['hl'] = 0.86*np.power(3+par['d']/(2*par['lam_i']),(-1/2))
+        if par['d']>0:
+            par['hl'] = 0.86*np.power(3+par['d']/(2*par['lam_i']),(-1/2))
         #print("par['sm1'] = ",par['sm1'])
         #print("par['sm2'] = ",par['sm2'])
         par['ns2'] = np.sqrt(par['S1']/par['S2'])*par['ns1']
@@ -647,7 +650,8 @@ def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
         par['n0'] = par['ns1']/par['hl']
         par['V'] = 0.83*par['V1_avg']
         par['Ji1'] = par['e']*par['ns1']*par['ub']
-        par['sm1'] = np.sqrt(0.82*par['e0']*np.pow(par['V'],3/2)/par['Ji1']*np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
+        if par['V']>0:
+            par['sm1'] = np.sqrt(0.82*par['e0']*np.pow(par['V'],3/2)/par['Ji1']*np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
         par['J1'] = 1.23*par['omega']*par['e0']/par['sm1']*par['V1_avg']
         par['Sabs'] = (par['e']*par['ns1']*par['ub']
                        *(par['V1_avg']+par['xi_c']+2*par['Te']+par['Te']
@@ -669,10 +673,11 @@ def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
 
         fun = lambda x : VrfEq(x, verbose=verbose)
         VrfSolve = optimize.root_scalar(fun, x0=50, x1=5000, xtol=1e-3, method='secant')
-        #VrfSolve = optimize.root_scalar(fun, bracket=(10000,10), rtol=1e-3, method='brentq')
+        #VrfSolve = optimize.root_scalar(fun, bracket=(20,200), x0=50, x1=5000, xtol=1e-3, method='brentq')
         if (verbose==True): print(f'VrfSolve = {VrfSolve}')
         return VrfSolve.root
-    
+    #for i in range(100,200,1):
+        #print(VrfEq(i))
     if mode=='Pwr':
         Vrf = Vrf_(verbose=verbose) 
         par['Vrf'] = Vrf
@@ -839,7 +844,7 @@ def main(vrname=False, prname=False, gcname=False, verbose=False):
             par['f']=par['f']/1e6
             return par
         
-#par = main(verbose=False)
+par = main(verbose=False)
 #print(par, len(par))
 #print('Execution time: %s seconds' % (time.time() - start_time))
 #sys.exit(0)
