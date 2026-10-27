@@ -278,7 +278,11 @@ def FrameworkHelper(args):
 
 def path_setter(args, ext='csv'):
     if '/' in args.filename:
-        subdir = 'output/' + args.filename.rstrip(string.ascii_letters).rstrip('/')
+        path_ = args.filename.split('/')
+        path_.pop(len(path_)-1)
+        subdir = 'output'
+        for i in path_:
+            subdir+=f'/{i}'
         if not(os.path.isdir(subdir)):
             os.makedirs(subdir)
     if not os.path.isfile(f'output/{args.filename}.{ext}'):
