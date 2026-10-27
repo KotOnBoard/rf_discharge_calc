@@ -230,6 +230,8 @@ def ParLoader(prname=False, vrname=False, gcname=False):
                 'M_MoO3': 95.95+3*16,
                 'M_Si': 28.02,
                 'ro_Si': 2330,
+                'M_W': 183.84,
+                'ro_W': 19254,
                 'e': 1.6e-19, # Заряд электрона [Кл]
                 'sm': 0.002,
                 'k': 1.380649e-23,   # Постоянная Больцмана [Дж/К]
@@ -243,13 +245,13 @@ def ParLoader(prname=False, vrname=False, gcname=False):
             with open(f"conf/{prname}.json5", 'r') as filepr:
                 par = json5.load(filepr)
         if (vrname==False):
-            par['gas'] = 'He'
-            par['l'] = 0.3
-            par['f'] = 80
-            par['Pwr'] = 50
-            par['Assy'] = 8
-            par['p'] = 2
-            par['S1'] = 0.019
+            par['gas'] = 'Ne'
+            par['l'] = 0.1
+            par['f'] = 72.5
+            par['Vrf'] = 188
+            par['Assy'] = 13.7
+            par['p'] = 2.008
+            par['S1'] = 0.01
             """
             par['gas'] = "Ne"
             par['p'] = 6 #pressure
@@ -566,9 +568,7 @@ def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
         RF voltage with matching RF power & Power absobed by plasma.
 
     """
-
-    def VrfEq(Vrf, verbose=False):
-        #print("==============================\n par['Vrf'] = ",Vrf)
+    def VrfPrecalc(Vrf, verbose=False):
         Vrf=abs(Vrf)
         par["vm"] = par["Kel"]*par["ng"]
         par["xi_c"] = (1/par["Kiz"]*(par["Kiz"]*gas_params[par['gas']]['xi_iz']+
@@ -614,7 +614,11 @@ def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
         if par['V']>0:
             par['sm1'] = np.sqrt(0.82*par['e0']*np.pow(par['V'],3/2)/par['Ji1']
                              *np.sqrt(2*par['e']/gas_params[par['gas']]['M']))
-        par['J1'] = 1.23*par['omega']*par['e0']/par['sm1']*par['V1_avg']
+        #par['J1'] = 1.23*par['omega']*par['e0']/par['sm1']*par['V1_avg']
+        ...
+    def VrfEq(Vrf, verbose=False):
+        #print("==============================\n par['Vrf'] = ",Vrf)
+        
         #Cycle
         par['sm2'] = np.pow(par['S2']/par['S1'],1-1.5)*par['sm1']
         par['d'] = par['l']-par['sm1']-par['sm2']
@@ -669,10 +673,11 @@ def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
             print(f'Sabs = {par["Sabs"]}')
             print(f'ns = {par["ns1"]}')
             print(f'Ji = {par["Ji1"]}')
-        return par['Sabs'] - par['Pwr']
+        if mode=="Pwr":
+            return par['Sabs'] - par['Pwr']
          
     def Vrf_(verbose=False):
-
+        VrfPrecalc(200, verbose=verbose)
         fun = lambda x : VrfEq(x, verbose=verbose)
         VrfSolve = optimize.root_scalar(fun, x0=50, x1=5000, xtol=1e-3, method='secant')
         #VrfSolve = optimize.root_scalar(fun, bracket=(20,200), x0=50, x1=5000, xtol=1e-3, method='brentq')
@@ -684,6 +689,7 @@ def VrfCalc(par, gas_params, mode='Pwr', verbose=False):
         Vrf = Vrf_(verbose=verbose) 
         par['Vrf'] = Vrf
     elif mode=='Vrf':
+        VrfPrecalc(par['Vrf'])
         VrfEq(par['Vrf'])
         par['Pwr'] = par['Sabs']
 
@@ -718,9 +724,9 @@ def dECalc(par, gas_params, verbose=False):
             print(f"Second_power = {1-4*np.power(par[f'V{j_[j+2]}']-(par[f'dEi{j_[j]} [eV]']/2)-par[f'V{j_[j+2]}'],2)}")
     return par
 
-def FiENorm(par, gas_params, verbose=False):
+def FiENorm(par, gas_params, mode="Square", verbose=False):
     j_ = ['1','2','1_avg','2_avg']
-    el = ['Mo', 'B', 'Si', 'MoO3']
+    el = ['Mo', 'B', 'Si', 'W', 'MoO3']
     for j in [0,1]:
         if verbose == True:
             print(f"dEi{j_[j]} [eV] = {par[f'dEi{j_[j]} [eV]']}ddd")
@@ -731,6 +737,18 @@ def FiENorm(par, gas_params, verbose=False):
 
         par[f'NN{j_[j]}'] = integrate.quad(FiE, par[f'V{j_[j+2]}']-(par[f'dEi{j_[j]} [eV]']/2),
                                            par[f'V{j_[j+2]}']+(par[f'dEi{j_[j]} [eV]']/2))[0]
+        
+        """======================================"""
+        if verbose==True:
+            rng = np.arange(0,1000,2)
+            FiEeval = [max(0,FiE(x)/par[f'NN{j_[j]}']*20) for x in rng]
+            plt.figure()
+            plt.plot(rng, FiEeval, label='FiE')
+            #plt.yscale('log')
+            plt.ylim(0,1.2)
+            #plt.legend()
+            #plt.show()
+        """======================================"""  
         
         for ind,i in enumerate(el):
             cont = [[],[]]
@@ -749,8 +767,12 @@ def FiENorm(par, gas_params, verbose=False):
                                 *(gas_params[par['gas']][f'w{i}']/
                                   (4*np.power(x/par['e']-gas_params[par['gas']][f'xc{i}'], 2)
                                    +np.power(gas_params[par['gas']][f'w{i}'], 2))))"""
-            """⚠Main problem №2⚠"""       
-            gam1_eff = lambda x: (interp(x)*FiE(x)/par[f'NN{j_[j]}'])
+            """⚠Main problem №2⚠""" 
+            if mode=="Interp":
+                gam1_eff = lambda x: (interp(x)*FiE(x)/par[f'NN{j_[j]}'])
+            elif mode=="Square":
+                #dam=[par[f'Ji{j_[j]}'],par[f'dEi{j_[j]} [eV]'],par[f'NN{j_[j]}']]
+                gam1_eff = lambda x: (interp(x)/par[f'dEi{j_[j]} [eV]'])
             if par[f'V{j_[j+2]}']>0 and par[f'V{j_[j+2]}']-(par[f'dEi{j_[j]} [eV]']/2)>0: 
                 par[f'G{j_[j]}_{i}_eff'] = (integrate.quad(gam1_eff, par[f'V{j_[j+2]}']-(par[f'dEi{j_[j]} [eV]']/2),
                                                            par[f'V{j_[j+2]}']+(par[f'dEi{j_[j]} [eV]']/2))[0])
@@ -761,7 +783,12 @@ def FiENorm(par, gas_params, verbose=False):
                 print(f"{j_[j]}_{i} = {par[f'G{j_[j]}_{i}_eff']}")
                 print(f"V{j_[j+2]} = {par[f'V{j_[j+2]}']}")
                 print(f"{'='*30}")
-        
+                gameval = [interp(x) for x in rng]
+                plt.plot(rng, gameval, label=f'G{j_[j]}_{i}')
+                
+        if verbose==True:
+            plt.legend()
+            plt.show()
         """Designated MoO3 block (reverted)
         try:
             MoO3 = {'xi': 40, 'y0': 0.2262, 'xc': 40, 'w': 318.32173, 'A': -113.01079}
@@ -771,23 +798,23 @@ def FiENorm(par, gas_params, verbose=False):
                 par[f'G{j_[j]}_MoO3_eff'] = (integrate.quad(gamMoO3_eff, par[f'V{j_[j+2]}']-(par[f'dEi{j_[j]} [eV]']/2),
                                                             par[f'V{j_[j+2]}']+(par[f'dEi{j_[j]} [eV]']/2))[0])
             else: par[f'G{j_[j]}_MoO3_eff'] = 0
-            '''Проверка адекватности показаний. Всё более 1e6 и менее 10^-6 приравнивается к нулю,  т.к. не явялется адекватным'''
+            '''Проверка адекватности показаний. Всё более 1e6 и менее 10^-6 приравнивается к нулю,  т.к. не является адекватным'''
             if par[f'G{j_[j]}_MoO3_eff']>1e6 or par[f'G{j_[j]}_MoO3_eff']<1e-6: par[f'G{j_[j]}_MoO3_eff'] = 0
         except: print('⚠⚠⚠⚠⚠MoO3 failed⚠⚠⚠⚠⚠')
         ======================"""
         
     for j in [0,1]:        
-        par[f'd{j_[j]}_MoB'] = par[f'G{j_[j]}_Mo_eff']/(par[f'G{j_[j]}_B_eff']+1e-10)
-        par[f'd{j_[j]}_MoO3'] = par[f'G{j_[j]}_Mo_eff']/(par[f'G{j_[j]}_MoO3_eff']+1e-10)
+        #par[f'd{j_[j]}_MoB'] = par[f'G{j_[j]}_Mo_eff']/(par[f'G{j_[j]}_B_eff']+1e-10)
+        #par[f'd{j_[j]}_MoO3'] = par[f'G{j_[j]}_Mo_eff']/(par[f'G{j_[j]}_MoO3_eff']+1e-10)
         
         for i in el:
-            par[f'd{j_[j]}M_{i}'] = par[f'Ji{j_[j]}']/(par['e']*par['N_A']*1e3)*par[f'M_{i}']*par[f'G{j_[j]}_{i}_eff']
-            par[f'd{j_[j]}H_{i}'] = par[f'd{j_[j]}M_{i}']/par[f'ro_{i}']*6e10
+            par[f'v_{i}_mass_side{j_[j]}'] =  par[f'Ji{j_[j]}']/(par['e']*par['N_A']*1e3)*par[f'M_{i}']*par[f'G{j_[j]}_{i}_eff'] #par[f'Ji{j_[j]}']/(par['e']*par['N_A']*1e3)*par[f'M_{i}']*par[f'G{j_[j]}_{i}_eff']
+            par[f'v_{i}_height_side{j_[j]}'] = par[f'v_{i}_mass_side{j_[j]}']/par[f'ro_{i}']*6e10
             if i!='Mo':
                 try:
                     par[f's{j_[j]}_{i}'] = (par[f'G{j_[j]}_{i}_eff']-par[f'G{j_[j]}_Mo_eff'])/(par[f'G{j_[j]}_{i}_eff']+par[f'G{j_[j]}_Mo_eff'])
                 except: 
-                    par[f's{j_[j]}_{i}'] = 'nan'
+                    par[f's{j_[j]}_{i}'] = 'None'
     
     return par
     
@@ -846,7 +873,7 @@ def main(vrname=False, prname=False, gcname=False, verbose=False):
             par['f']=par['f']/1e6
             return par
         
-#par = main(verbose=False)
+#par = main(verbose=True)
 #print(par, len(par))
 #print('Execution time: %s seconds' % (time.time() - start_time))
 #sys.exit(0)
